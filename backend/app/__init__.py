@@ -1,0 +1,1 @@
+"""Memoro - Personal CRM application."""

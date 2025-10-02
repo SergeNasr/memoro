@@ -1,0 +1,87 @@
+# Memoro - Personal CRM
+
+# Default recipe to display help information
+default:
+    @just --list
+
+# Install dependencies using uv
+install:
+    uv sync --all-extras
+
+# Run development server with hot reload
+dev:
+    uv run uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug
+
+# Run all tests
+test:
+    uv run pytest backend/tests -v
+
+# Run tests with coverage
+test-cov:
+    uv run pytest backend/tests -v --cov=backend.app --cov-report=term-missing
+
+# Run specific test file
+test-file file:
+    uv run pytest backend/tests/{{file}} -v
+
+# Format code with ruff
+format:
+    uv run ruff format .
+
+# Lint code with ruff (show all warnings)
+lint:
+    uv run ruff check . --output-format=full
+
+# Lint and fix auto-fixable issues
+lint-fix:
+    uv run ruff check . --fix
+
+# Run both format and lint
+check: format lint
+
+# Setup local database (requires docker-compose)
+db-setup:
+    docker-compose up -d postgres
+    sleep 2
+    @echo "Database is ready at localhost:5432"
+
+# Stop local database
+db-stop:
+    docker-compose down
+
+# Run database migrations
+db-migrate:
+    uv run alembic upgrade head
+
+# Rollback last migration
+db-rollback:
+    uv run alembic downgrade -1
+
+# Create new migration
+db-revision message:
+    uv run alembic revision -m "{{message}}"
+
+# Open database shell
+db-shell:
+    docker-compose exec postgres psql -U memoro -d memoro
+
+# Clean Python cache files
+clean:
+    find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    find . -type f -name "*.pyc" -delete
+    find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+    find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+
+# Run the application in production mode
+run:
+    uv run uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+
+# Show project info
+info:
+    @echo "Memoro - Personal CRM"
+    @echo "Python version: $(python --version)"
+    @echo "uv version: $(uv --version)"
+    @echo ""
+    @echo "Run 'just install' to install dependencies"
+    @echo "Run 'just dev' to start development server"
+    @echo "Run 'just test' to run tests"
