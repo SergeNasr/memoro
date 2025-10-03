@@ -25,6 +25,7 @@ SQL_UPDATE_LATEST_NEWS = load_sql("contacts/update_latest_news.sql")
 SQL_CREATE_INTERACTION = load_sql("interactions/create.sql")
 SQL_CREATE_FAMILY_MEMBER = load_sql("family_members/create.sql")
 SQL_LIST_INTERACTIONS_BY_CONTACT = load_sql("interactions/list_by_contact.sql")
+SQL_GET_INTERACTION_BY_ID = load_sql("interactions/get_by_id.sql")
 
 
 @router.post("/analyze", response_model=AnalyzeInteractionResponse, status_code=status.HTTP_200_OK)
@@ -143,3 +144,36 @@ async def confirm_interaction_endpoint(
             interaction_id=interaction_id,
             family_members_linked=family_count,
         )
+
+
+@router.get("/{interaction_id}", response_model=Interaction, status_code=status.HTTP_200_OK)
+async def get_interaction(
+    interaction_id: UUID,
+    # TODO: Add user authentication and get user_id from session
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+) -> Interaction:
+    """
+    Get a single interaction by ID.
+
+    Returns the interaction details if found and belongs to the authenticated user.
+    Raises 404 if interaction not found or doesn't belong to the user.
+    """
+    async with get_db_connection() as conn:
+        row = await conn.fetchrow(SQL_GET_INTERACTION_BY_ID, interaction_id, user_id)
+
+        if row is None:
+            logger.warning("interaction_not_found", interaction_id=str(interaction_id), user_id=str(user_id))
+            raise HTTPException(status_code=404, detail="Interaction not found")
+
+        interaction = Interaction(
+            id=row["id"],
+            user_id=row["user_id"],
+            contact_id=row["contact_id"],
+            interaction_date=row["interaction_date"],
+            notes=row["notes"],
+            location=row["location"],
+        )
+
+        logger.info("interaction_retrieved", interaction_id=str(interaction_id), user_id=str(user_id))
+
+        return interaction

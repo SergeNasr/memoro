@@ -262,6 +262,73 @@ class TestConfirmInteraction:
         assert response.status_code == 422  # Validation error
 
 
+class TestGetInteraction:
+    """Tests for GET /api/interactions/{id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_interaction_success(self, client: AsyncClient):
+        """Test successful interaction retrieval."""
+
+        def make_record(**kwargs):
+            class MockRecord(dict):
+                def __getitem__(self, key):
+                    return super().__getitem__(key)
+
+            return MockRecord(**kwargs)
+
+        mock_conn = patch("backend.app.routers.interactions.get_db_connection")
+        interaction_id = uuid4()
+        contact_id = uuid4()
+
+        with mock_conn as mock:
+            mock_instance = mock.return_value.__aenter__.return_value
+
+            # Mock fetchrow
+            mock_instance.fetchrow.return_value = make_record(
+                id=interaction_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                contact_id=contact_id,
+                interaction_date=date(2024, 1, 15),
+                notes="Met for coffee and caught up",
+                location="Starbucks Downtown",
+            )
+
+            response = await client.get(f"/api/interactions/{interaction_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["id"] == str(interaction_id)
+        assert data["contact_id"] == str(contact_id)
+        assert data["notes"] == "Met for coffee and caught up"
+        assert data["location"] == "Starbucks Downtown"
+        assert data["interaction_date"] == "2024-01-15"
+
+    @pytest.mark.asyncio
+    async def test_get_interaction_not_found(self, client: AsyncClient):
+        """Test interaction not found (404)."""
+
+        mock_conn = patch("backend.app.routers.interactions.get_db_connection")
+        interaction_id = uuid4()
+
+        with mock_conn as mock:
+            mock_instance = mock.return_value.__aenter__.return_value
+
+            # Mock fetchrow returns None (interaction not found)
+            mock_instance.fetchrow.return_value = None
+
+            response = await client.get(f"/api/interactions/{interaction_id}")
+
+        assert response.status_code == 404
+        assert "Interaction not found" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_get_interaction_invalid_uuid(self, client: AsyncClient):
+        """Test invalid UUID format."""
+        response = await client.get("/api/interactions/not-a-uuid")
+        assert response.status_code == 422  # Validation error
+
+
 class TestHealthCheck:
     """Tests for health check endpoint."""
 
