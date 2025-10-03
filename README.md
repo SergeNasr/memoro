@@ -122,21 +122,36 @@ ENVIRONMENT=development
 ## Implemented Features
 
 ### ✅ Currently Available
+
+**Interaction Endpoints:**
 - 🤖 **POST /api/interactions/analyze** - LLM-powered extraction of contact info and interaction details from natural text
 - 💾 **POST /api/interactions/confirm** - Persist analyzed interactions to database with automatic contact creation and family linking
+- 📖 **GET /api/interactions/{id}** - Retrieve a single interaction by ID
+
+**Contact Endpoints:**
+- 📋 **GET /api/contacts** - List all contacts with pagination
+- 📖 **GET /api/contacts/{id}** - Get a single contact by ID
+- ✏️ **PATCH /api/contacts/{id}** - Update contact details
+- 🗑️ **DELETE /api/contacts/{id}** - Delete a contact
+- 📜 **GET /api/contacts/{id}/interactions** - List all interactions for a contact
+
+**Infrastructure:**
 - ❤️ Health check endpoint
 - 🏗️ Database schema with PostgreSQL + pgvector support
+- 💉 FastAPI dependency injection for database connections
 - 🔄 Transaction-based database operations with auto-commit/rollback
 - 📁 Clean architecture with SQL files and prompt templates
 - 🛡️ Global exception handlers for clean error handling
-- 🧪 Comprehensive unit tests with reusable mocks
+- 🧪 Comprehensive unit tests with dependency injection mocks
 - 📝 Structured logging with colored console output
 - 🔄 Alembic migrations for schema management
+- 🚀 CI/CD with GitHub Actions
 
 ### 🚧 Coming Soon
 - 🔍 Semantic search using embeddings
-- 👥 CRUD operations for contacts and interactions
-- 📊 Contact summaries
+- ✏️ PATCH /api/interactions/{id} - Update interactions
+- 🗑️ DELETE /api/interactions/{id} - Delete interactions
+- 📊 Contact summaries with AI-generated insights
 - 🔐 Google OAuth authentication
 - 🎨 HTMX frontend
 
@@ -152,97 +167,7 @@ All tables have timezone-aware `created_at` and `updated_at` timestamps.
 
 ## API Documentation
 
-### POST /api/interactions/analyze
-
-Analyzes raw interaction text using LLM to extract structured information.
-
-**Request:**
-```json
-{
-  "text": "Had coffee with Sarah Johnson at Starbucks today. She mentioned her birthday is March 15th and her daughter Emma just started college."
-}
-```
-
-**Response:**
-```json
-{
-  "contact": {
-    "first_name": "Sarah",
-    "last_name": "Johnson",
-    "birthday": "1985-03-15",
-    "confidence": 0.95
-  },
-  "interaction": {
-    "notes": "Had coffee together, discussed daughter starting college",
-    "location": "Starbucks",
-    "interaction_date": "2025-10-02",
-    "confidence": 0.9
-  },
-  "family_members": [
-    {
-      "first_name": "Emma",
-      "last_name": "Johnson",
-      "relationship": "child",
-      "confidence": 0.85
-    }
-  ],
-  "raw_text": "Had coffee with Sarah Johnson at..."
-}
-```
-
-**Features:**
-- Extracts contact name, birthday, location
-- Identifies family members and relationships
-- Returns confidence scores for all extracted data
-- Preserves original text for reference
-
----
-
-### POST /api/interactions/confirm
-
-Confirms and persists the analyzed interaction data to the database.
-
-**Request:**
-```json
-{
-  "contact": {
-    "first_name": "Sarah",
-    "last_name": "Johnson",
-    "birthday": "1985-03-15",
-    "confidence": 0.95
-  },
-  "interaction": {
-    "notes": "Had coffee together, discussed daughter starting college",
-    "location": "Starbucks",
-    "interaction_date": "2025-10-02",
-    "confidence": 0.9
-  },
-  "family_members": [
-    {
-      "first_name": "Emma",
-      "last_name": "Johnson",
-      "relationship": "child",
-      "confidence": 0.85
-    }
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "contact_id": "123e4567-e89b-12d3-a456-426614174000",
-  "interaction_id": "987f6543-e21a-45b7-b123-426614174001",
-  "family_members_linked": 1
-}
-```
-
-**Features:**
-- Creates or finds existing contacts (case-insensitive name matching)
-- Creates interaction records with notes, location, and date
-- Automatically creates contacts for family members and links relationships
-- Updates contact's `latest_news` field
-- All operations in a single transaction (auto-commit/rollback)
+Full API documentation available at http://localhost:8000/docs when running the development server.
 
 ## Testing
 
@@ -251,15 +176,29 @@ Run the test suite:
 just test
 ```
 
-Tests include:
-- ✅ Successful interaction analysis with LLM
-- ✅ Interaction confirmation and database persistence
-- ✅ Family member linking
-- ✅ Request validation (empty/missing text)
-- ✅ API error handling
+**Test Coverage (29 tests):**
+
+*Interaction Endpoints:*
+- ✅ POST /api/interactions/analyze - Success, validation, API errors
+- ✅ POST /api/interactions/confirm - Success, family linking, validation
+- ✅ GET /api/interactions/{id} - Success, not found, invalid UUID
+
+*Contact Endpoints:*
+- ✅ GET /api/contacts - Success, empty, pagination, validation
+- ✅ GET /api/contacts/{id} - Success, not found, invalid UUID
+- ✅ PATCH /api/contacts/{id} - Success, partial update, not found, empty body
+- ✅ DELETE /api/contacts/{id} - Success, not found, invalid UUID
+- ✅ GET /api/contacts/{id}/interactions - Success, empty, not found
+
+*Infrastructure:*
 - ✅ Health check endpoint
 
-All tests use mocked external dependencies (OpenRouter API, database transactions).
+**Testing Approach:**
+- FastAPI dependency injection with automatic overrides
+- Mocked database connections and transactions
+- Mocked OpenRouter API calls
+- In-memory PostgreSQL via pytest-postgresql
+- No external dependencies required
 
 ## Architecture Decisions
 

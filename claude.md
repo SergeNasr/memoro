@@ -224,11 +224,13 @@ memoro/
 - Application queries: Raw SQL files (no ORM dependency at runtime)
 
 ### Database Connection Pattern
-We use clean context managers to eliminate boilerplate:
-- `get_db_transaction()` - For transactional operations with auto-commit/rollback
-- `get_db_connection()` - For simple read queries
-- No repetitive `pool.acquire()` and `conn.transaction()` code
-- Pattern reusable across all endpoints
+We use FastAPI dependency injection for database connections:
+- `get_db_dependency()` - FastAPI dependency for read operations
+- `get_db_transaction_dependency()` - FastAPI dependency for transactional operations with auto-commit/rollback
+- Injected via `Depends()` in endpoint parameters
+- Automatic connection cleanup by FastAPI
+- Easy to mock in tests by overriding `app.dependency_overrides`
+- No manual connection management in endpoints
 
 ### Prompt Management Pattern
 LLM prompts stored as external files (like SQL):
