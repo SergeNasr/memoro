@@ -26,7 +26,9 @@ SQL_CREATE_FAMILY_MEMBER = load_sql("family_members/create.sql")
 
 
 @router.post("/analyze", response_model=AnalyzeInteractionResponse, status_code=status.HTTP_200_OK)
-async def analyze_interaction_endpoint(request: AnalyzeInteractionRequest) -> AnalyzeInteractionResponse:
+async def analyze_interaction_endpoint(
+    request: AnalyzeInteractionRequest,
+) -> AnalyzeInteractionResponse:
     """
     Analyze raw interaction text and extract structured information.
 
@@ -41,7 +43,9 @@ async def analyze_interaction_endpoint(request: AnalyzeInteractionRequest) -> An
     return result
 
 
-@router.post("/confirm", response_model=ConfirmInteractionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/confirm", response_model=ConfirmInteractionResponse, status_code=status.HTTP_201_CREATED
+)
 async def confirm_interaction_endpoint(
     request: ConfirmInteractionRequest,
     # TODO: Add user authentication and get user_id from session

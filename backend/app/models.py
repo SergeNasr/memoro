@@ -1,11 +1,9 @@
 """Pydantic models for request/response validation."""
 
 from datetime import date
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-
 
 # Interaction Analysis Models
 

@@ -14,7 +14,9 @@ class TestAnalyzeInteraction:
     @pytest.mark.asyncio
     async def test_analyze_interaction_success(self, client: AsyncClient, mock_openrouter_client):
         """Test successful interaction analysis."""
-        with patch("backend.app.services.llm.httpx.AsyncClient", return_value=mock_openrouter_client):
+        with patch(
+            "backend.app.services.llm.httpx.AsyncClient", return_value=mock_openrouter_client
+        ):
             response = await client.post(
                 "/api/interactions/analyze",
                 json={
@@ -80,7 +82,9 @@ class TestAnalyzeInteraction:
 
             # Configure raise_for_status to raise an error
             def raise_error():
-                raise HTTPStatusError("API Error", request=mock_response.request, response=mock_response)
+                raise HTTPStatusError(
+                    "API Error", request=mock_response.request, response=mock_response
+                )
 
             mock_response.raise_for_status = raise_error
 
@@ -144,7 +148,9 @@ class TestConfirmInteraction:
 
         mock_db_transaction.fetchrow.side_effect = mock_fetchrow_side_effect
 
-        with patch("backend.app.routers.interactions.get_db_transaction", return_value=mock_db_transaction):
+        with patch(
+            "backend.app.routers.interactions.get_db_transaction", return_value=mock_db_transaction
+        ):
             response = await client.post(
                 "/api/interactions/confirm",
                 json={
@@ -181,7 +187,9 @@ class TestConfirmInteraction:
         assert data["family_members_linked"] == 1
 
     @pytest.mark.asyncio
-    async def test_confirm_interaction_no_family_members(self, client: AsyncClient, mock_db_transaction):
+    async def test_confirm_interaction_no_family_members(
+        self, client: AsyncClient, mock_db_transaction
+    ):
         """Test confirmation without family members."""
         contact_id = uuid4()
         interaction_id = uuid4()
@@ -214,11 +222,18 @@ class TestConfirmInteraction:
 
         mock_db_transaction.fetchrow.side_effect = mock_fetchrow_side_effect
 
-        with patch("backend.app.routers.interactions.get_db_transaction", return_value=mock_db_transaction):
+        with patch(
+            "backend.app.routers.interactions.get_db_transaction", return_value=mock_db_transaction
+        ):
             response = await client.post(
                 "/api/interactions/confirm",
                 json={
-                    "contact": {"first_name": "John", "last_name": "Doe", "birthday": None, "confidence": 0.9},
+                    "contact": {
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "birthday": None,
+                        "confidence": 0.9,
+                    },
                     "interaction": {
                         "notes": "Quick chat",
                         "location": None,

@@ -112,5 +112,9 @@ async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
             logger.error("openrouter_http_error", error=str(e))
             raise
         except (KeyError, json.JSONDecodeError, ValueError) as e:
-            logger.error("openrouter_parse_error", error=str(e), content=content if "content" in locals() else None)
+            logger.error(
+                "openrouter_parse_error",
+                error=str(e),
+                content=content if "content" in locals() else None,
+            )
             raise ValueError(f"Failed to parse OpenRouter response: {e}") from e
