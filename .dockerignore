@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# uv
+.uv/
+uv.lock
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Logs
+*.log
+
+# Database files
+*.db
+*.sqlite3
+
+# Environment variables (except .env.example)
+.env
+.env.local
+.env.*.local
+
+# Ruff cache
+.ruff_cache/
+
+# OpenAPI spec (regenerated)
+openapi.json
+
+# Documentation
+README.md
+claude.md

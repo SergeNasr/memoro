@@ -16,5 +16,25 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: memoro-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend:delegated
+      - ./alembic:/app/alembic:delegated
+      - ./.env:/app/.env:ro
+    environment:
+      - DATABASE_URL=postgresql://memoro:memoro@postgres:5432/memoro
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uv run uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+
 volumes:
   postgres_data:
