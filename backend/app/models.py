@@ -54,6 +54,24 @@ class AnalyzeInteractionResponse(BaseModel):
     raw_text: str = Field(..., description="Original input text")
 
 
+class ConfirmInteractionRequest(BaseModel):
+    """Request model for confirming and persisting interaction data."""
+
+    contact: ExtractedContact
+    interaction: ExtractedInteraction
+    family_members: list[ExtractedFamilyMember] = Field(
+        default_factory=list, description="Family members to link"
+    )
+
+
+class ConfirmInteractionResponse(BaseModel):
+    """Response model for confirmed interaction."""
+
+    contact_id: UUID = Field(..., description="ID of created/found contact")
+    interaction_id: UUID = Field(..., description="ID of created interaction")
+    family_members_linked: int = Field(..., description="Number of family members linked")
+
+
 # Contact Models
 
 

@@ -1,6 +1,8 @@
 """Tests for interaction endpoints."""
 
+from datetime import date
 from unittest.mock import patch
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -89,6 +91,159 @@ class TestAnalyzeInteraction:
 
         assert response.status_code == 500
         assert "Failed to analyze interaction" in response.json()["detail"]
+
+
+class TestConfirmInteraction:
+    """Tests for POST /api/interactions/confirm endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_confirm_interaction_success(self, client: AsyncClient, mock_db_transaction):
+        """Test successful confirmation and persistence of interaction."""
+        contact_id = uuid4()
+        interaction_id = uuid4()
+
+        # Configure mock to return different values for different queries
+        def mock_fetchrow_side_effect(*args, **kwargs):
+            class MockRecord(dict):
+                def __getitem__(self, key):
+                    return super().__getitem__(key)
+
+            # First call: find/create contact
+            if "contact" in str(args[0]).lower() or "first_name" in str(args[0]).lower():
+                return MockRecord(
+                    id=contact_id,
+                    first_name="Sarah",
+                    last_name="Johnson",
+                    birthday=None,
+                    latest_news="Test interaction",
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                )
+            # Second call: create interaction
+            elif "interaction" in str(args[0]).lower():
+                return MockRecord(
+                    id=interaction_id,
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    contact_id=contact_id,
+                    interaction_date=date(2025, 10, 2),
+                    notes="Had coffee together",
+                    location="Starbucks",
+                    created_at=None,
+                    updated_at=None,
+                )
+            # Family member calls
+            else:
+                return MockRecord(
+                    id=uuid4(),
+                    first_name="Emma",
+                    last_name="Johnson",
+                    birthday=None,
+                    latest_news="Family member",
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                )
+
+        mock_db_transaction.fetchrow.side_effect = mock_fetchrow_side_effect
+
+        with patch("backend.app.routers.interactions.get_db_transaction", return_value=mock_db_transaction):
+            response = await client.post(
+                "/api/interactions/confirm",
+                json={
+                    "contact": {
+                        "first_name": "Sarah",
+                        "last_name": "Johnson",
+                        "birthday": "1985-03-15",
+                        "confidence": 0.95,
+                    },
+                    "interaction": {
+                        "notes": "Had coffee together, discussed daughter starting college",
+                        "location": "Starbucks",
+                        "interaction_date": "2025-10-02",
+                        "confidence": 0.9,
+                    },
+                    "family_members": [
+                        {
+                            "first_name": "Emma",
+                            "last_name": "Johnson",
+                            "relationship": "child",
+                            "confidence": 0.85,
+                        }
+                    ],
+                },
+            )
+
+        assert response.status_code == 201
+        data = response.json()
+
+        # Verify response structure
+        assert "contact_id" in data
+        assert "interaction_id" in data
+        assert "family_members_linked" in data
+        assert data["family_members_linked"] == 1
+
+    @pytest.mark.asyncio
+    async def test_confirm_interaction_no_family_members(self, client: AsyncClient, mock_db_transaction):
+        """Test confirmation without family members."""
+        contact_id = uuid4()
+        interaction_id = uuid4()
+
+        def mock_fetchrow_side_effect(*args, **kwargs):
+            class MockRecord(dict):
+                def __getitem__(self, key):
+                    return super().__getitem__(key)
+
+            if "interaction" in str(args[0]).lower() and "INSERT" in str(args[0]):
+                return MockRecord(
+                    id=interaction_id,
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    contact_id=contact_id,
+                    interaction_date=date(2025, 10, 2),
+                    notes="Quick chat",
+                    location=None,
+                    created_at=None,
+                    updated_at=None,
+                )
+            else:
+                return MockRecord(
+                    id=contact_id,
+                    first_name="John",
+                    last_name="Doe",
+                    birthday=None,
+                    latest_news="Quick chat",
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                )
+
+        mock_db_transaction.fetchrow.side_effect = mock_fetchrow_side_effect
+
+        with patch("backend.app.routers.interactions.get_db_transaction", return_value=mock_db_transaction):
+            response = await client.post(
+                "/api/interactions/confirm",
+                json={
+                    "contact": {"first_name": "John", "last_name": "Doe", "birthday": None, "confidence": 0.9},
+                    "interaction": {
+                        "notes": "Quick chat",
+                        "location": None,
+                        "interaction_date": "2025-10-02",
+                        "confidence": 0.8,
+                    },
+                    "family_members": [],
+                },
+            )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["family_members_linked"] == 0
+
+    @pytest.mark.asyncio
+    async def test_confirm_interaction_validation_error(self, client: AsyncClient):
+        """Test validation error for invalid request."""
+        response = await client.post(
+            "/api/interactions/confirm",
+            json={
+                "contact": {"first_name": "John", "confidence": 0.9},
+                # Missing required fields
+            },
+        )
+
+        assert response.status_code == 422  # Validation error
 
 
 class TestHealthCheck:

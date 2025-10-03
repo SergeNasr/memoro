@@ -18,8 +18,17 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
+    from backend.app.db import close_pool, get_pool
+
     logger.info("starting_memoro", environment=settings.environment)
+
+    # Initialize database pool
+    await get_pool()
+
     yield
+
+    # Close database pool
+    await close_pool()
     logger.info("shutting_down_memoro")
 
 

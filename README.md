@@ -18,17 +18,18 @@ A personal CRM for tracking daily interactions with people in your life. Record 
 - [uv](https://github.com/astral-sh/uv) - Fast Python package manager
 - [just](https://github.com/casey/just) - Command runner
 
-## Setup
+## Quick Start
 
 1. **Install dependencies**
    ```bash
-   uv sync
+   just install
+   # or: uv sync --all-extras
    ```
 
 2. **Configure environment**
    ```bash
    cp .env.example .env
-   # Edit .env with your credentials
+   # Edit .env and add your OPENROUTER_API_KEY
    ```
 
 3. **Start PostgreSQL**
@@ -40,6 +41,15 @@ A personal CRM for tracking daily interactions with people in your life. Record 
    ```bash
    just db-migrate
    ```
+
+5. **Start the development server**
+   ```bash
+   just dev
+   ```
+
+6. **Access the API**
+   - API docs: http://localhost:8000/docs
+   - Health check: http://localhost:8000/health
 
 ## Development Commands
 
@@ -100,17 +110,23 @@ LOG_LEVEL=DEBUG
 ENVIRONMENT=development
 ```
 
-## Key Features
+## Implemented Features
 
-- 📝 Track daily interactions with contacts
-- 🔍 Semantic search using embeddings
-- 👥 Manage contact relationships and family members
-- 🎂 Store birthdays, locations, and updates
-- 🔐 Google OAuth authentication
-- 🚀 Fast, async Python backend
-- ✨ No ORM - direct SQL for transparency
+### ✅ Currently Available
+- 🤖 **POST /api/interactions/analyze** - LLM-powered extraction of contact info and interaction details from natural text
+- ❤️ Health check endpoint
+- 🏗️ Database schema with PostgreSQL + pgvector support
+- 🧪 Comprehensive unit tests with reusable mocks
+- 📝 Structured logging with colored console output
 - 🔄 Alembic migrations for schema management
-- 🐳 Docker PostgreSQL for dev, in-memory for tests
+
+### 🚧 Coming Soon
+- 📝 Confirm and persist analyzed interactions
+- 🔍 Semantic search using embeddings
+- 👥 CRUD operations for contacts and interactions
+- 📊 Contact summaries
+- 🔐 Google OAuth authentication
+- 🎨 HTMX frontend
 
 ## Database Schema
 
@@ -122,6 +138,67 @@ Tables use singular names:
 
 All tables have timezone-aware `created_at` and `updated_at` timestamps.
 
+## API Documentation
+
+### POST /api/interactions/analyze
+
+Analyzes raw interaction text using LLM to extract structured information.
+
+**Request:**
+```json
+{
+  "text": "Had coffee with Sarah Johnson at Starbucks today. She mentioned her birthday is March 15th and her daughter Emma just started college."
+}
+```
+
+**Response:**
+```json
+{
+  "contact": {
+    "first_name": "Sarah",
+    "last_name": "Johnson",
+    "birthday": "1985-03-15",
+    "confidence": 0.95
+  },
+  "interaction": {
+    "notes": "Had coffee together, discussed daughter starting college",
+    "location": "Starbucks",
+    "interaction_date": "2025-10-02",
+    "confidence": 0.9
+  },
+  "family_members": [
+    {
+      "first_name": "Emma",
+      "last_name": "Johnson",
+      "relationship": "child",
+      "confidence": 0.85
+    }
+  ],
+  "raw_text": "Had coffee with Sarah Johnson at..."
+}
+```
+
+**Features:**
+- Extracts contact name, birthday, location
+- Identifies family members and relationships
+- Returns confidence scores for all extracted data
+- Preserves original text for reference
+
+## Testing
+
+Run the test suite:
+```bash
+just test
+```
+
+Tests include:
+- ✅ Successful interaction analysis
+- ✅ Request validation (empty/missing text)
+- ✅ API error handling
+- ✅ Health check endpoint
+
+All tests use mocked OpenRouter API calls (no external dependencies).
+
 ## Architecture Decisions
 
-See [CLAUDE.md](./CLAUDE.md) for detailed architecture and technical decisions.
+See [claude.md](./claude.md) for detailed architecture and technical decisions.
