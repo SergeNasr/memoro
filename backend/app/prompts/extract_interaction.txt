@@ -1,0 +1,44 @@
+You are an AI assistant that extracts structured information from casual interaction notes.
+
+Given the following text about an interaction with someone, extract:
+1. Contact information (first name, last name, birthday if mentioned)
+2. Interaction details (what happened, location, date)
+3. Family members mentioned (names and relationships)
+
+For each piece of information, provide a confidence score between 0.0 and 1.0.
+
+Rules:
+- If the interaction date is not explicitly mentioned, assume it's today's date: {today}
+- If only a first name is mentioned, last_name should be null
+- If no location is mentioned, location should be null
+- If no family members are mentioned, return an empty list
+- Be conservative with confidence scores - use lower scores when information is ambiguous
+
+Return your response as a valid JSON object with this exact structure:
+{{
+    "contact": {{
+        "first_name": "string or null",
+        "last_name": "string or null",
+        "birthday": "YYYY-MM-DD or null",
+        "confidence": 0.0-1.0
+    }},
+    "interaction": {{
+        "notes": "summary of what happened",
+        "location": "string or null",
+        "interaction_date": "YYYY-MM-DD",
+        "confidence": 0.0-1.0
+    }},
+    "family_members": [
+        {{
+            "first_name": "string or null",
+            "last_name": "string or null",
+            "relationship": "spouse|child|parent|sibling|other",
+            "confidence": 0.0-1.0
+        }}
+    ]
+}}
+
+Input text:
+{text}
+
+Respond ONLY with the JSON object, no additional text.

@@ -2,6 +2,7 @@
 
 import json
 from datetime import date
+from pathlib import Path
 
 import httpx
 import structlog
@@ -19,50 +20,26 @@ logger = structlog.get_logger(__name__)
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
-EXTRACTION_PROMPT = """You are an AI assistant that extracts structured information from casual interaction notes.
+def load_prompt(filename: str) -> str:
+    """
+    Load LLM prompt from file.
 
-Given the following text about an interaction with someone, extract:
-1. Contact information (first name, last name, birthday if mentioned)
-2. Interaction details (what happened, location, date)
-3. Family members mentioned (names and relationships)
+    Args:
+        filename: Path relative to backend/app/prompts/ directory
 
-For each piece of information, provide a confidence score between 0.0 and 1.0.
+    Returns:
+        Prompt text
 
-Rules:
-- If the interaction date is not explicitly mentioned, assume it's today's date: {today}
-- If only a first name is mentioned, last_name should be null
-- If no location is mentioned, location should be null
-- If no family members are mentioned, return an empty list
-- Be conservative with confidence scores - use lower scores when information is ambiguous
+    Raises:
+        FileNotFoundError: If prompt file doesn't exist
+    """
+    prompts_dir = Path(__file__).parent.parent / "prompts"
+    prompt_path = prompts_dir / filename
 
-Return your response as a valid JSON object with this exact structure:
-{{
-    "contact": {{
-        "first_name": "string or null",
-        "last_name": "string or null",
-        "birthday": "YYYY-MM-DD or null",
-        "confidence": 0.0-1.0
-    }},
-    "interaction": {{
-        "notes": "summary of what happened",
-        "location": "string or null",
-        "interaction_date": "YYYY-MM-DD",
-        "confidence": 0.0-1.0
-    }},
-    "family_members": [
-        {{
-            "first_name": "string or null",
-            "last_name": "string or null",
-            "relationship": "spouse|child|parent|sibling|other",
-            "confidence": 0.0-1.0
-        }}
-    ]
-}}
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
 
-Input text:
-{text}
-
-Respond ONLY with the JSON object, no additional text."""
+    return prompt_path.read_text()
 
 
 async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
@@ -82,7 +59,8 @@ async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
     logger.info("analyzing_interaction", text_length=len(text))
 
     today = date.today().isoformat()
-    prompt = EXTRACTION_PROMPT.format(today=today, text=text)
+    prompt_template = load_prompt("extract_interaction.txt")
+    prompt = prompt_template.format(today=today, text=text)
 
     async with httpx.AsyncClient() as client:
         try:
