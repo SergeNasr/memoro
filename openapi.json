@@ -1,0 +1,905 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Memoro API",
+    "description": "Personal CRM for tracking daily interactions",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/interactions/analyze": {
+      "post": {
+        "tags": [
+          "interactions"
+        ],
+        "summary": "Analyze Interaction Endpoint",
+        "description": "Analyze raw interaction text and extract structured information.\n\nThis endpoint uses LLM to extract:\n- Contact information (name, birthday)\n- Interaction details (notes, location, date)\n- Family members mentioned\n\nEach extracted field includes a confidence score.",
+        "operationId": "analyze_interaction_endpoint_api_interactions_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeInteractionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyzeInteractionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/interactions/confirm": {
+      "post": {
+        "tags": [
+          "interactions"
+        ],
+        "summary": "Confirm Interaction Endpoint",
+        "description": "Confirm and persist analyzed interaction data to database.\n\nThis endpoint:\n- Creates or finds existing contact\n- Creates interaction record with notes, location, date\n- Links family members (creates contacts for them too)\n- Updates contact's latest_news field\n\nReturns IDs of created/found entities.",
+        "operationId": "confirm_interaction_endpoint_api_interactions_confirm_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "default": "00000000-0000-0000-0000-000000000000",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmInteractionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmInteractionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "List Contacts",
+        "description": "List all contacts for the authenticated user with pagination.\n\nReturns contacts sorted alphabetically by last name, then first name.",
+        "operationId": "list_contacts_api_contacts_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number (1-indexed)",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number (1-indexed)"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of contacts per page",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "Number of contacts per page"
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "default": "00000000-0000-0000-0000-000000000000",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts/{contact_id}": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Get Contact",
+        "description": "Get a single contact by ID.\n\nReturns the contact details if found and belongs to the authenticated user.\nRaises 404 if contact not found or doesn't belong to the user.",
+        "operationId": "get_contact_api_contacts__contact_id__get",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contact Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "default": "00000000-0000-0000-0000-000000000000",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contact"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Update Contact",
+        "description": "Update a contact's details.\n\nAll fields are optional. Only provided fields will be updated.\nReturns 404 if contact not found or doesn't belong to the user.",
+        "operationId": "update_contact_api_contacts__contact_id__patch",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contact Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "default": "00000000-0000-0000-0000-000000000000",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contact"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Delete Contact",
+        "description": "Delete a contact.\n\nDeletes the contact and all associated interactions and family relationships.\nReturns 404 if contact not found or doesn't belong to the user.",
+        "operationId": "delete_contact_api_contacts__contact_id__delete",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contact Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "default": "00000000-0000-0000-0000-000000000000",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts/{contact_id}/interactions": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "List Contact Interactions",
+        "description": "Get all interactions for a specific contact.\n\nReturns interactions sorted by date (most recent first).\nReturns 404 if contact not found or doesn't belong to the user.",
+        "operationId": "list_contact_interactions_api_contacts__contact_id__interactions_get",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contact Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "default": "00000000-0000-0000-0000-000000000000",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Interaction"
+                  },
+                  "title": "Response List Contact Interactions Api Contacts  Contact Id  Interactions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Health check endpoint.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalyzeInteractionRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text",
+            "description": "Raw interaction text to analyze"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AnalyzeInteractionRequest",
+        "description": "Request model for analyzing interaction text."
+      },
+      "AnalyzeInteractionResponse": {
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/ExtractedContact"
+          },
+          "interaction": {
+            "$ref": "#/components/schemas/ExtractedInteraction"
+          },
+          "family_members": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractedFamilyMember"
+            },
+            "type": "array",
+            "title": "Family Members",
+            "description": "Extracted family members"
+          },
+          "raw_text": {
+            "type": "string",
+            "title": "Raw Text",
+            "description": "Original input text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact",
+          "interaction",
+          "raw_text"
+        ],
+        "title": "AnalyzeInteractionResponse",
+        "description": "Response model for analyzed interaction."
+      },
+      "ConfirmInteractionRequest": {
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/ExtractedContact"
+          },
+          "interaction": {
+            "$ref": "#/components/schemas/ExtractedInteraction"
+          },
+          "family_members": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractedFamilyMember"
+            },
+            "type": "array",
+            "title": "Family Members",
+            "description": "Family members to link"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact",
+          "interaction"
+        ],
+        "title": "ConfirmInteractionRequest",
+        "description": "Request model for confirming and persisting interaction data."
+      },
+      "ConfirmInteractionResponse": {
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contact Id",
+            "description": "ID of created/found contact"
+          },
+          "interaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Interaction Id",
+            "description": "ID of created interaction"
+          },
+          "family_members_linked": {
+            "type": "integer",
+            "title": "Family Members Linked",
+            "description": "Number of family members linked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact_id",
+          "interaction_id",
+          "family_members_linked"
+        ],
+        "title": "ConfirmInteractionResponse",
+        "description": "Response model for confirmed interaction."
+      },
+      "Contact": {
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "title": "First Name"
+          },
+          "last_name": {
+            "type": "string",
+            "title": "Last Name"
+          },
+          "birthday": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthday"
+          },
+          "latest_news": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest News"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "id",
+          "user_id"
+        ],
+        "title": "Contact",
+        "description": "Contact response model."
+      },
+      "ContactListResponse": {
+        "properties": {
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/Contact"
+            },
+            "type": "array",
+            "title": "Contacts"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contacts",
+          "total",
+          "page",
+          "page_size",
+          "total_pages"
+        ],
+        "title": "ContactListResponse",
+        "description": "Paginated contact list response."
+      },
+      "ContactUpdate": {
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "birthday": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthday"
+          },
+          "latest_news": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest News"
+          }
+        },
+        "type": "object",
+        "title": "ContactUpdate",
+        "description": "Contact update request (all fields optional)."
+      },
+      "ExtractedContact": {
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name",
+            "description": "Contact's first name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name",
+            "description": "Contact's last name"
+          },
+          "birthday": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthday",
+            "description": "Contact's birthday if mentioned"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "description": "Extraction confidence score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "confidence"
+        ],
+        "title": "ExtractedContact",
+        "description": "Extracted contact information from interaction text."
+      },
+      "ExtractedFamilyMember": {
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name",
+            "description": "Family member's first name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name",
+            "description": "Family member's last name"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship",
+            "description": "Relationship type (e.g., spouse, child, parent)"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "description": "Extraction confidence score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "relationship",
+          "confidence"
+        ],
+        "title": "ExtractedFamilyMember",
+        "description": "Extracted family member information."
+      },
+      "ExtractedInteraction": {
+        "properties": {
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "description": "Summary of interaction"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location",
+            "description": "Location where interaction occurred"
+          },
+          "interaction_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Interaction Date",
+            "description": "Date of interaction"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "description": "Extraction confidence score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "notes",
+          "interaction_date",
+          "confidence"
+        ],
+        "title": "ExtractedInteraction",
+        "description": "Extracted interaction details."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Interaction": {
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contact Id"
+          },
+          "interaction_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Interaction Date"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact_id",
+          "interaction_date",
+          "notes",
+          "id",
+          "user_id"
+        ],
+        "title": "Interaction",
+        "description": "Interaction response model."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

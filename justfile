@@ -76,6 +76,12 @@ clean:
 run:
     uv run uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 
+# Export OpenAPI spec to file
+openapi:
+    @echo "Exporting OpenAPI specification..."
+    uv run python -c "from backend.app.main import app; import json; print(json.dumps(app.openapi(), indent=2))" > openapi.json
+    @echo "OpenAPI spec exported to openapi.json"
+
 # Show project info
 info:
     @echo "Memoro - Personal CRM"
