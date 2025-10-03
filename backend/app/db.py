@@ -75,6 +75,33 @@ async def get_db_transaction() -> AsyncIterator[asyncpg.Connection]:
             yield conn
 
 
+async def get_db_dependency() -> AsyncIterator[asyncpg.Connection]:
+    """
+    FastAPI dependency for database connections.
+
+    Usage in endpoint:
+        async def my_endpoint(conn: asyncpg.Connection = Depends(get_db_dependency)):
+            result = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        yield conn
+
+
+async def get_db_transaction_dependency() -> AsyncIterator[asyncpg.Connection]:
+    """
+    FastAPI dependency for database transactions.
+
+    Usage in endpoint:
+        async def my_endpoint(conn: asyncpg.Connection = Depends(get_db_transaction_dependency)):
+            await conn.execute("INSERT INTO users ...")
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            yield conn
+
+
 def load_sql(filename: str) -> str:
     """
     Load SQL query from file.
