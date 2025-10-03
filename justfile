@@ -62,6 +62,7 @@ docker-logs-api:
 # Rebuild and restart services
 docker-restart:
     docker-compose down
+    sleep 2
     docker-compose up -d --build
 
 # Setup local database only (requires docker-compose)
