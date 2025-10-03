@@ -1,3 +1,5 @@
+[![CI](https://github.com/SergeNasr/memoro/actions/workflows/ci.yml/badge.svg)](https://github.com/SergeNasr/memoro/actions/workflows/ci.yml)
+
 <p align="center">
   <img src="assets/banner.png" alt="Memoro Banner" width="50%">
 </p>
