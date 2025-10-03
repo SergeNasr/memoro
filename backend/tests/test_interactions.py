@@ -109,13 +109,9 @@ class TestConfirmInteraction:
 
         # Configure mock to return different values for different queries
         def mock_fetchrow_side_effect(*args, **kwargs):
-            class MockRecord(dict):
-                def __getitem__(self, key):
-                    return super().__getitem__(key)
-
             # First call: find/create contact
             if "contact" in str(args[0]).lower() or "first_name" in str(args[0]).lower():
-                return MockRecord(
+                return mock_db_transaction.make_record(
                     id=contact_id,
                     first_name="Sarah",
                     last_name="Johnson",
@@ -125,7 +121,7 @@ class TestConfirmInteraction:
                 )
             # Second call: create interaction
             elif "interaction" in str(args[0]).lower():
-                return MockRecord(
+                return mock_db_transaction.make_record(
                     id=interaction_id,
                     user_id=UUID("00000000-0000-0000-0000-000000000000"),
                     contact_id=contact_id,
@@ -137,7 +133,7 @@ class TestConfirmInteraction:
                 )
             # Family member calls
             else:
-                return MockRecord(
+                return mock_db_transaction.make_record(
                     id=uuid4(),
                     first_name="Emma",
                     last_name="Johnson",
@@ -148,34 +144,31 @@ class TestConfirmInteraction:
 
         mock_db_transaction.fetchrow.side_effect = mock_fetchrow_side_effect
 
-        with patch(
-            "backend.app.routers.interactions.get_db_transaction", return_value=mock_db_transaction
-        ):
-            response = await client.post(
-                "/api/interactions/confirm",
-                json={
-                    "contact": {
-                        "first_name": "Sarah",
-                        "last_name": "Johnson",
-                        "birthday": "1985-03-15",
-                        "confidence": 0.95,
-                    },
-                    "interaction": {
-                        "notes": "Had coffee together, discussed daughter starting college",
-                        "location": "Starbucks",
-                        "interaction_date": "2025-10-02",
-                        "confidence": 0.9,
-                    },
-                    "family_members": [
-                        {
-                            "first_name": "Emma",
-                            "last_name": "Johnson",
-                            "relationship": "child",
-                            "confidence": 0.85,
-                        }
-                    ],
+        response = await client.post(
+            "/api/interactions/confirm",
+            json={
+                "contact": {
+                    "first_name": "Sarah",
+                    "last_name": "Johnson",
+                    "birthday": "1985-03-15",
+                    "confidence": 0.95,
                 },
-            )
+                "interaction": {
+                    "notes": "Had coffee together, discussed daughter starting college",
+                    "location": "Starbucks",
+                    "interaction_date": "2025-10-02",
+                    "confidence": 0.9,
+                },
+                "family_members": [
+                    {
+                        "first_name": "Emma",
+                        "last_name": "Johnson",
+                        "relationship": "child",
+                        "confidence": 0.85,
+                    }
+                ],
+            },
+        )
 
         assert response.status_code == 201
         data = response.json()
@@ -195,12 +188,8 @@ class TestConfirmInteraction:
         interaction_id = uuid4()
 
         def mock_fetchrow_side_effect(*args, **kwargs):
-            class MockRecord(dict):
-                def __getitem__(self, key):
-                    return super().__getitem__(key)
-
             if "interaction" in str(args[0]).lower() and "INSERT" in str(args[0]):
-                return MockRecord(
+                return mock_db_transaction.make_record(
                     id=interaction_id,
                     user_id=UUID("00000000-0000-0000-0000-000000000000"),
                     contact_id=contact_id,
@@ -211,7 +200,7 @@ class TestConfirmInteraction:
                     updated_at=None,
                 )
             else:
-                return MockRecord(
+                return mock_db_transaction.make_record(
                     id=contact_id,
                     first_name="John",
                     last_name="Doe",
@@ -222,34 +211,33 @@ class TestConfirmInteraction:
 
         mock_db_transaction.fetchrow.side_effect = mock_fetchrow_side_effect
 
-        with patch(
-            "backend.app.routers.interactions.get_db_transaction", return_value=mock_db_transaction
-        ):
-            response = await client.post(
-                "/api/interactions/confirm",
-                json={
-                    "contact": {
-                        "first_name": "John",
-                        "last_name": "Doe",
-                        "birthday": None,
-                        "confidence": 0.9,
-                    },
-                    "interaction": {
-                        "notes": "Quick chat",
-                        "location": None,
-                        "interaction_date": "2025-10-02",
-                        "confidence": 0.8,
-                    },
-                    "family_members": [],
+        response = await client.post(
+            "/api/interactions/confirm",
+            json={
+                "contact": {
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "birthday": None,
+                    "confidence": 0.9,
                 },
-            )
+                "interaction": {
+                    "notes": "Quick chat",
+                    "location": None,
+                    "interaction_date": "2025-10-02",
+                    "confidence": 0.8,
+                },
+                "family_members": [],
+            },
+        )
 
         assert response.status_code == 201
         data = response.json()
         assert data["family_members_linked"] == 0
 
     @pytest.mark.asyncio
-    async def test_confirm_interaction_validation_error(self, client: AsyncClient):
+    async def test_confirm_interaction_validation_error(
+        self, client: AsyncClient, mock_db_transaction
+    ):
         """Test validation error for invalid request."""
         response = await client.post(
             "/api/interactions/confirm",
@@ -258,7 +246,6 @@ class TestConfirmInteraction:
                 # Missing required fields
             },
         )
-
         assert response.status_code == 422  # Validation error
 
 
@@ -266,34 +253,23 @@ class TestGetInteraction:
     """Tests for GET /api/interactions/{id} endpoint."""
 
     @pytest.mark.asyncio
-    async def test_get_interaction_success(self, client: AsyncClient):
+    async def test_get_interaction_success(self, client: AsyncClient, mock_db_connection):
         """Test successful interaction retrieval."""
 
-        def make_record(**kwargs):
-            class MockRecord(dict):
-                def __getitem__(self, key):
-                    return super().__getitem__(key)
-
-            return MockRecord(**kwargs)
-
-        mock_conn = patch("backend.app.routers.interactions.get_db_connection")
         interaction_id = uuid4()
         contact_id = uuid4()
 
-        with mock_conn as mock:
-            mock_instance = mock.return_value.__aenter__.return_value
+        # Mock fetchrow
+        mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(
+            id=interaction_id,
+            user_id=UUID("00000000-0000-0000-0000-000000000000"),
+            contact_id=contact_id,
+            interaction_date=date(2024, 1, 15),
+            notes="Met for coffee and caught up",
+            location="Starbucks Downtown",
+        )
 
-            # Mock fetchrow
-            mock_instance.fetchrow.return_value = make_record(
-                id=interaction_id,
-                user_id=UUID("00000000-0000-0000-0000-000000000000"),
-                contact_id=contact_id,
-                interaction_date=date(2024, 1, 15),
-                notes="Met for coffee and caught up",
-                location="Starbucks Downtown",
-            )
-
-            response = await client.get(f"/api/interactions/{interaction_id}")
+        response = await client.get(f"/api/interactions/{interaction_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -305,25 +281,21 @@ class TestGetInteraction:
         assert data["interaction_date"] == "2024-01-15"
 
     @pytest.mark.asyncio
-    async def test_get_interaction_not_found(self, client: AsyncClient):
+    async def test_get_interaction_not_found(self, client: AsyncClient, mock_db_connection):
         """Test interaction not found (404)."""
 
-        mock_conn = patch("backend.app.routers.interactions.get_db_connection")
         interaction_id = uuid4()
 
-        with mock_conn as mock:
-            mock_instance = mock.return_value.__aenter__.return_value
+        # Mock fetchrow returns None (interaction not found)
+        mock_db_connection.fetchrow.return_value = None
 
-            # Mock fetchrow returns None (interaction not found)
-            mock_instance.fetchrow.return_value = None
-
-            response = await client.get(f"/api/interactions/{interaction_id}")
+        response = await client.get(f"/api/interactions/{interaction_id}")
 
         assert response.status_code == 404
         assert "Interaction not found" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_get_interaction_invalid_uuid(self, client: AsyncClient):
+    async def test_get_interaction_invalid_uuid(self, client: AsyncClient, mock_db_connection):
         """Test invalid UUID format."""
         response = await client.get("/api/interactions/not-a-uuid")
         assert response.status_code == 422  # Validation error

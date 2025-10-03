@@ -2,15 +2,17 @@
 
 from uuid import UUID
 
+import asyncpg
 import structlog
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.app.db import get_db_transaction, load_sql
+from backend.app.db import get_db_dependency, get_db_transaction_dependency, load_sql
 from backend.app.models import (
     AnalyzeInteractionRequest,
     AnalyzeInteractionResponse,
     ConfirmInteractionRequest,
     ConfirmInteractionResponse,
+    Interaction,
 )
 from backend.app.services.llm import analyze_interaction
 
@@ -52,6 +54,7 @@ async def confirm_interaction_endpoint(
     request: ConfirmInteractionRequest,
     # TODO: Add user authentication and get user_id from session
     user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    conn: asyncpg.Connection = Depends(get_db_transaction_dependency),
 ) -> ConfirmInteractionResponse:
     """
     Confirm and persist analyzed interaction data to database.
@@ -64,85 +67,84 @@ async def confirm_interaction_endpoint(
 
     Returns IDs of created/found entities.
     """
-    async with get_db_transaction() as conn:
-        # 1. Find or create main contact
-        contact_row = await conn.fetchrow(
+    # 1. Find or create main contact
+    contact_row = await conn.fetchrow(
+        SQL_FIND_OR_CREATE_CONTACT,
+        user_id,
+        request.contact.first_name or "Unknown",
+        request.contact.last_name or "",
+        request.contact.birthday,
+        request.interaction.notes,  # Use interaction notes as initial latest_news
+    )
+    contact_id = contact_row["id"]
+    logger.info("contact_found_or_created", contact_id=str(contact_id))
+
+    # 2. Create interaction
+    interaction_row = await conn.fetchrow(
+        SQL_CREATE_INTERACTION,
+        user_id,
+        contact_id,
+        request.interaction.interaction_date,
+        request.interaction.notes,
+        request.interaction.location,
+        None,  # embedding - will be added later
+    )
+    interaction_id = interaction_row["id"]
+    logger.info("interaction_created", interaction_id=str(interaction_id))
+
+    # 3. Update contact's latest_news with this interaction
+    await conn.execute(
+        SQL_UPDATE_LATEST_NEWS,
+        contact_id,
+        request.interaction.notes,
+    )
+
+    # 4. Link family members
+    family_count = 0
+    for family_member in request.family_members:
+        if not family_member.first_name:
+            continue
+
+        # Create or find family member contact
+        family_contact_row = await conn.fetchrow(
             SQL_FIND_OR_CREATE_CONTACT,
             user_id,
-            request.contact.first_name or "Unknown",
-            request.contact.last_name or "",
-            request.contact.birthday,
-            request.interaction.notes,  # Use interaction notes as initial latest_news
+            family_member.first_name,
+            family_member.last_name or "",
+            None,  # No birthday for family members yet
+            f"Family member of {request.contact.first_name}",
         )
-        contact_id = contact_row["id"]
-        logger.info("contact_found_or_created", contact_id=str(contact_id))
+        family_contact_id = family_contact_row["id"]
 
-        # 2. Create interaction
-        interaction_row = await conn.fetchrow(
-            SQL_CREATE_INTERACTION,
-            user_id,
+        # Create family relationship
+        result = await conn.fetchrow(
+            SQL_CREATE_FAMILY_MEMBER,
             contact_id,
-            request.interaction.interaction_date,
-            request.interaction.notes,
-            request.interaction.location,
-            None,  # embedding - will be added later
-        )
-        interaction_id = interaction_row["id"]
-        logger.info("interaction_created", interaction_id=str(interaction_id))
-
-        # 3. Update contact's latest_news with this interaction
-        await conn.execute(
-            SQL_UPDATE_LATEST_NEWS,
-            contact_id,
-            request.interaction.notes,
+            family_contact_id,
+            family_member.relationship,
         )
 
-        # 4. Link family members
-        family_count = 0
-        for family_member in request.family_members:
-            if not family_member.first_name:
-                continue
-
-            # Create or find family member contact
-            family_contact_row = await conn.fetchrow(
-                SQL_FIND_OR_CREATE_CONTACT,
-                user_id,
-                family_member.first_name,
-                family_member.last_name or "",
-                None,  # No birthday for family members yet
-                f"Family member of {request.contact.first_name}",
-            )
-            family_contact_id = family_contact_row["id"]
-
-            # Create family relationship
-            result = await conn.fetchrow(
-                SQL_CREATE_FAMILY_MEMBER,
-                contact_id,
-                family_contact_id,
-                family_member.relationship,
+        if result:  # Only count if relationship was created (not duplicate)
+            family_count += 1
+            logger.info(
+                "family_member_linked",
+                contact_id=str(contact_id),
+                family_contact_id=str(family_contact_id),
+                relationship=family_member.relationship,
             )
 
-            if result:  # Only count if relationship was created (not duplicate)
-                family_count += 1
-                logger.info(
-                    "family_member_linked",
-                    contact_id=str(contact_id),
-                    family_contact_id=str(family_contact_id),
-                    relationship=family_member.relationship,
-                )
+    logger.info(
+        "interaction_confirmed",
+        contact_id=str(contact_id),
+        interaction_id=str(interaction_id),
+        family_members_linked=family_count,
+    )
 
-        logger.info(
-            "interaction_confirmed",
-            contact_id=str(contact_id),
-            interaction_id=str(interaction_id),
-            family_members_linked=family_count,
-        )
-
-        return ConfirmInteractionResponse(
-            contact_id=contact_id,
-            interaction_id=interaction_id,
-            family_members_linked=family_count,
-        )
+    return ConfirmInteractionResponse(
+        contact_id=contact_id,
+        interaction_id=interaction_id,
+        family_members_linked=family_count,
+    )
 
 
 @router.get("/{interaction_id}", response_model=Interaction, status_code=status.HTTP_200_OK)
@@ -150,6 +152,7 @@ async def get_interaction(
     interaction_id: UUID,
     # TODO: Add user authentication and get user_id from session
     user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> Interaction:
     """
     Get a single interaction by ID.
@@ -157,22 +160,23 @@ async def get_interaction(
     Returns the interaction details if found and belongs to the authenticated user.
     Raises 404 if interaction not found or doesn't belong to the user.
     """
-    async with get_db_connection() as conn:
-        row = await conn.fetchrow(SQL_GET_INTERACTION_BY_ID, interaction_id, user_id)
+    row = await conn.fetchrow(SQL_GET_INTERACTION_BY_ID, interaction_id, user_id)
 
-        if row is None:
-            logger.warning("interaction_not_found", interaction_id=str(interaction_id), user_id=str(user_id))
-            raise HTTPException(status_code=404, detail="Interaction not found")
-
-        interaction = Interaction(
-            id=row["id"],
-            user_id=row["user_id"],
-            contact_id=row["contact_id"],
-            interaction_date=row["interaction_date"],
-            notes=row["notes"],
-            location=row["location"],
+    if row is None:
+        logger.warning(
+            "interaction_not_found", interaction_id=str(interaction_id), user_id=str(user_id)
         )
+        raise HTTPException(status_code=404, detail="Interaction not found")
 
-        logger.info("interaction_retrieved", interaction_id=str(interaction_id), user_id=str(user_id))
+    interaction = Interaction(
+        id=row["id"],
+        user_id=row["user_id"],
+        contact_id=row["contact_id"],
+        interaction_date=row["interaction_date"],
+        notes=row["notes"],
+        location=row["location"],
+    )
 
-        return interaction
+    logger.info("interaction_retrieved", interaction_id=str(interaction_id), user_id=str(user_id))
+
+    return interaction

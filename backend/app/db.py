@@ -1,7 +1,6 @@
 """Database connection and SQL query management using asyncpg."""
 
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 import asyncpg
@@ -43,13 +42,12 @@ async def close_pool() -> None:
         _pool = None
 
 
-@asynccontextmanager
-async def get_db_connection() -> AsyncIterator[asyncpg.Connection]:
+async def get_db_dependency() -> AsyncIterator[asyncpg.Connection]:
     """
-    Get a database connection from the pool.
+    FastAPI dependency for database connections.
 
-    Usage:
-        async with get_db_connection() as conn:
+    Usage in endpoint:
+        async def my_endpoint(conn: asyncpg.Connection = Depends(get_db_dependency)):
             result = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
     """
     pool = await get_pool()
@@ -57,17 +55,13 @@ async def get_db_connection() -> AsyncIterator[asyncpg.Connection]:
         yield conn
 
 
-@asynccontextmanager
-async def get_db_transaction() -> AsyncIterator[asyncpg.Connection]:
+async def get_db_transaction_dependency() -> AsyncIterator[asyncpg.Connection]:
     """
-    Get a database connection with an active transaction.
+    FastAPI dependency for database transactions.
 
-    The transaction will automatically commit on success or rollback on error.
-
-    Usage:
-        async with get_db_transaction() as conn:
+    Usage in endpoint:
+        async def my_endpoint(conn: asyncpg.Connection = Depends(get_db_transaction_dependency)):
             await conn.execute("INSERT INTO users ...")
-            await conn.execute("INSERT INTO contacts ...")
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
