@@ -41,9 +41,6 @@ uv.lock
 *~
 .DS_Store
 
-# Claude Code
-.claude/
-
 # Testing
 .pytest_cache/
 .coverage
