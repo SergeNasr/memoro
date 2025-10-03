@@ -3,17 +3,25 @@
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
+import asyncpg
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.main import app
 
 
 @pytest.fixture
 async def client():
     """Async HTTP client for testing FastAPI endpoints."""
+    # Clear any existing overrides before tests
+    app.dependency_overrides.clear()
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+    # Clean up after tests
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -81,21 +89,56 @@ def mock_openrouter_client(mock_openrouter_response):
 
 
 @pytest.fixture
+def mock_db_connection():
+    """
+    Mock database connection for FastAPI dependency injection.
+
+    Automatically overrides get_db_dependency in the app.
+
+    Usage:
+        def test_something(client, mock_db_connection):
+            # Setup mock behavior
+            mock_db_connection.fetchrow.return_value = {...}
+            # Test will use the mocked connection
+            response = await client.get("/api/contacts/...")
+    """
+    mock_conn = AsyncMock(spec=asyncpg.Connection)
+
+    # Mock fetchrow to return a record-like object
+    def make_record(**kwargs):
+        class MockRecord(dict):
+            def __getitem__(self, key):
+                return super().__getitem__(key)
+
+        return MockRecord(**kwargs)
+
+    mock_conn.make_record = make_record
+
+    # Automatically override the dependency
+    app.dependency_overrides[get_db_dependency] = lambda: mock_conn
+
+    yield mock_conn
+
+    # Clean up is handled by client fixture
+
+
+@pytest.fixture
 def mock_db_transaction():
     """
-    Mock database transaction for testing without real database.
+    Mock database transaction for FastAPI dependency injection.
 
-    Returns a mock connection object with common asyncpg methods.
+    Automatically overrides get_db_transaction_dependency in the app.
 
-    Usage in tests:
-        async def test_something(mock_db_transaction):
-            with patch("backend.app.db.get_db_transaction", return_value=mock_db_transaction):
-                # Your test code that uses database
-                result = await confirm_interaction(...)
+    Usage:
+        def test_something(client, mock_db_transaction):
+            # Setup mock behavior
+            mock_db_transaction.fetchrow.return_value = {...}
+            # Test will use the mocked transaction
+            response = await client.post("/api/interactions/confirm", ...)
     """
     from uuid import uuid4
 
-    mock_conn = AsyncMock()
+    mock_conn = AsyncMock(spec=asyncpg.Connection)
 
     # Mock fetchrow to return a record-like object
     def make_record(**kwargs):
@@ -117,8 +160,11 @@ def mock_db_transaction():
 
     # Mock execute for UPDATE/DELETE
     mock_conn.execute.return_value = None
+    mock_conn.make_record = make_record
 
-    mock_conn.__aenter__.return_value = mock_conn
-    mock_conn.__aexit__.return_value = None
+    # Automatically override the dependency
+    app.dependency_overrides[get_db_transaction_dependency] = lambda: mock_conn
 
-    return mock_conn
+    yield mock_conn
+
+    # Clean up is handled by client fixture
