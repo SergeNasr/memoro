@@ -39,7 +39,33 @@ lint-fix:
 # Run both format and lint
 check: format lint
 
-# Setup local database (requires docker-compose)
+# Start full stack (API + database) with hot reload
+docker-up:
+    docker-compose up -d
+    @echo "Services starting..."
+    @echo "API: http://localhost:8000"
+    @echo "Docs: http://localhost:8000/docs"
+    @echo "Database: localhost:5432"
+
+# Stop all Docker services
+docker-down:
+    docker-compose down
+
+# View logs from all services
+docker-logs:
+    docker-compose logs -f
+
+# View API logs only
+docker-logs-api:
+    docker-compose logs -f api
+
+# Rebuild and restart services
+docker-restart:
+    docker-compose down
+    sleep 2
+    docker-compose up -d --build
+
+# Setup local database only (requires docker-compose)
 db-setup:
     docker-compose up -d postgres
     sleep 2
@@ -47,7 +73,7 @@ db-setup:
 
 # Stop local database
 db-stop:
-    docker-compose down
+    docker-compose down postgres
 
 # Run database migrations
 db-migrate:
@@ -75,6 +101,12 @@ clean:
 # Run the application in production mode
 run:
     uv run uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+
+# Export OpenAPI spec to file
+openapi:
+    @echo "Exporting OpenAPI specification..."
+    uv run python -c "from backend.app.main import app; import json; print(json.dumps(app.openapi(), indent=2))" > openapi.json
+    @echo "OpenAPI spec exported to openapi.json"
 
 # Show project info
 info:
