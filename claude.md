@@ -82,6 +82,7 @@ memoro/
 │   │   ├── main.py                 # FastAPI application entry point
 │   │   ├── config.py               # Settings (pydantic-settings)
 │   │   ├── db.py                   # asyncpg connection pool & helpers
+│   │   ├── exceptions.py           # Custom exceptions & handlers
 │   │   ├── logger.py               # structlog configuration
 │   │   ├── models.py               # Pydantic schemas (validation only)
 │   │   ├── auth.py                 # Google OAuth implementation
@@ -236,6 +237,14 @@ LLM prompts stored as external files (like SQL):
 - Consistent with SQL file pattern
 - Easy to version control and edit without touching code
 - Scalable for multiple prompts
+
+### Exception Handling Pattern
+Global exception handlers eliminate repetitive try/except blocks:
+- `exceptions.py` - Custom exception classes and handlers
+- Handlers registered in `main.py` at application startup
+- Endpoints remain clean without error handling code
+- Centralized logging and consistent error responses
+- Proper HTTP status codes (503 for external services, 500 for internal errors)
 
 ## Database Schema Overview
 

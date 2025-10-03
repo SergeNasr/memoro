@@ -85,6 +85,7 @@ memoro/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app
 │   │   ├── db.py                # Database connection pool & helpers
+│   │   ├── exceptions.py        # Custom exceptions & handlers
 │   │   ├── sql/                 # Raw SQL queries (by domain)
 │   │   ├── prompts/             # LLM prompt templates
 │   │   ├── routers/             # API endpoints
@@ -121,6 +122,7 @@ ENVIRONMENT=development
 - 🏗️ Database schema with PostgreSQL + pgvector support
 - 🔄 Transaction-based database operations with auto-commit/rollback
 - 📁 Clean architecture with SQL files and prompt templates
+- 🛡️ Global exception handlers for clean error handling
 - 🧪 Comprehensive unit tests with reusable mocks
 - 📝 Structured logging with colored console output
 - 🔄 Alembic migrations for schema management
