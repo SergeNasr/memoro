@@ -1,0 +1,28 @@
+meta {
+  name: Update Contact
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/contacts/:contact_id
+  body: json
+  auth: inherit
+}
+
+params:query {
+  ~user_id: 
+}
+
+params:path {
+  contact_id: 
+}
+
+body:json {
+  {
+    "first_name": "",
+    "last_name": "",
+    "birthday": "",
+    "latest_news": ""
+  }
+}

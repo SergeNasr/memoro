@@ -1,0 +1,19 @@
+meta {
+  name: Get Contact
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/contacts/:contact_id
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~user_id: 
+}
+
+params:path {
+  contact_id: 
+}

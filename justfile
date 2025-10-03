@@ -39,6 +39,14 @@ lint-fix:
 # Run both format and lint
 check: format lint
 
+# Install pre-commit hooks
+hooks-install:
+    uv run pre-commit install
+
+# Run pre-commit on all files
+hooks-run:
+    uv run pre-commit run --all-files
+
 # Start full stack (API + database) with hot reload
 docker-up:
     docker-compose up -d

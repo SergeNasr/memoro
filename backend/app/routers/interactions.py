@@ -3,15 +3,14 @@
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 
-from backend.app.db import get_db_connection, get_db_transaction, load_sql
+from backend.app.db import get_db_transaction, load_sql
 from backend.app.models import (
     AnalyzeInteractionRequest,
     AnalyzeInteractionResponse,
     ConfirmInteractionRequest,
     ConfirmInteractionResponse,
-    Interaction,
 )
 from backend.app.services.llm import analyze_interaction
 

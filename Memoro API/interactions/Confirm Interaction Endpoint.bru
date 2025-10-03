@@ -1,0 +1,40 @@
+meta {
+  name: Confirm Interaction Endpoint
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/interactions/confirm
+  body: json
+  auth: inherit
+}
+
+params:query {
+  ~user_id: 
+}
+
+body:json {
+  {
+    "contact": {
+      "first_name": "",
+      "last_name": "",
+      "birthday": "",
+      "confidence": ""
+    },
+    "interaction": {
+      "notes": "",
+      "location": "",
+      "interaction_date": "",
+      "confidence": ""
+    },
+    "family_members": [
+      {
+        "first_name": "",
+        "last_name": "",
+        "relationship": "",
+        "confidence": ""
+      }
+    ]
+  }
+}

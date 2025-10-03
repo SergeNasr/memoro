@@ -134,7 +134,9 @@ async def update_contact(
         )
 
         if row is None:
-            logger.warning("contact_not_found_for_update", contact_id=str(contact_id), user_id=str(user_id))
+            logger.warning(
+                "contact_not_found_for_update", contact_id=str(contact_id), user_id=str(user_id)
+            )
             raise HTTPException(status_code=404, detail="Contact not found")
 
         contact = Contact(
@@ -167,13 +169,17 @@ async def delete_contact(
         row = await conn.fetchrow(SQL_DELETE_CONTACT, contact_id, user_id)
 
         if row is None:
-            logger.warning("contact_not_found_for_delete", contact_id=str(contact_id), user_id=str(user_id))
+            logger.warning(
+                "contact_not_found_for_delete", contact_id=str(contact_id), user_id=str(user_id)
+            )
             raise HTTPException(status_code=404, detail="Contact not found")
 
         logger.info("contact_deleted", contact_id=str(contact_id), user_id=str(user_id))
 
 
-@router.get("/{contact_id}/interactions", response_model=list[Interaction], status_code=status.HTTP_200_OK)
+@router.get(
+    "/{contact_id}/interactions", response_model=list[Interaction], status_code=status.HTTP_200_OK
+)
 async def list_contact_interactions(
     contact_id: UUID,
     # TODO: Add user authentication and get user_id from session
@@ -190,7 +196,11 @@ async def list_contact_interactions(
         contact_row = await conn.fetchrow(SQL_GET_CONTACT_BY_ID, contact_id, user_id)
 
         if contact_row is None:
-            logger.warning("contact_not_found_for_interactions", contact_id=str(contact_id), user_id=str(user_id))
+            logger.warning(
+                "contact_not_found_for_interactions",
+                contact_id=str(contact_id),
+                user_id=str(user_id),
+            )
             raise HTTPException(status_code=404, detail="Contact not found")
 
         # Fetch interactions

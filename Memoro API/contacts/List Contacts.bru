@@ -1,0 +1,17 @@
+meta {
+  name: List Contacts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/contacts
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 
+  ~page_size: 
+  ~user_id: 
+}
