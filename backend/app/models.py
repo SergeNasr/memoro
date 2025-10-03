@@ -104,6 +104,16 @@ class Contact(ContactBase):
     user_id: UUID
 
 
+class ContactListResponse(BaseModel):
+    """Paginated contact list response."""
+
+    contacts: list[Contact]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 # Interaction Models
 
 
