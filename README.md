@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.png" alt="Memoro Banner" width="50%">
+</p>
+
 # Memoro
 
 A personal CRM for tracking daily interactions with people in your life. Record contact details, interactions, and use semantic search to find context about your relationships.
