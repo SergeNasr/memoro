@@ -81,30 +81,35 @@ memoro/
 │   │   ├── __init__.py
 │   │   ├── main.py                 # FastAPI application entry point
 │   │   ├── config.py               # Settings (pydantic-settings)
-│   │   ├── db.py                   # asyncpg connection pool & SQL loader
+│   │   ├── db.py                   # asyncpg connection pool & helpers
 │   │   ├── logger.py               # structlog configuration
 │   │   ├── models.py               # Pydantic schemas (validation only)
 │   │   ├── auth.py                 # Google OAuth implementation
 │   │   ├── routers/
 │   │   │   ├── __init__.py
 │   │   │   ├── contacts.py         # Contact CRUD endpoints
-│   │   │   └── interactions.py     # Interaction CRUD endpoints
+│   │   │   └── interactions.py     # Interaction endpoints
 │   │   ├── services/
 │   │   │   ├── __init__.py
-│   │   │   ├── embeddings.py       # OpenRouter API client
+│   │   │   ├── llm.py              # OpenRouter API client for LLM
+│   │   │   ├── embeddings.py       # Embedding generation
 │   │   │   └── search.py           # Semantic search logic
-│   │   ├── sql/                    # Raw SQL queries
-│   │   │   ├── schema.sql          # Database schema + pgvector setup
+│   │   ├── sql/                    # Raw SQL queries (by domain)
 │   │   │   ├── contacts/
-│   │   │   │   ├── create.sql
+│   │   │   │   ├── find_or_create.sql
+│   │   │   │   ├── update_latest_news.sql
 │   │   │   │   ├── get_by_id.sql
 │   │   │   │   ├── update.sql
 │   │   │   │   ├── list.sql
 │   │   │   │   └── search.sql      # Vector similarity search
-│   │   │   └── interactions/
-│   │   │       ├── create.sql
-│   │   │       ├── get_latest.sql
-│   │   │       └── list_by_contact.sql
+│   │   │   ├── interactions/
+│   │   │   │   ├── create.sql
+│   │   │   │   ├── get_latest.sql
+│   │   │   │   └── list_by_contact.sql
+│   │   │   └── family_members/
+│   │   │       └── create.sql
+│   │   ├── prompts/                # LLM prompt templates
+│   │   │   └── extract_interaction.txt
 │   │   ├── templates/              # Jinja2 templates
 │   │   │   ├── base.html
 │   │   │   ├── contacts/
@@ -216,6 +221,21 @@ memoro/
 - **Testing**: In-memory PostgreSQL via pytest-postgresql (fast, isolated)
 - **Migrations**: Alembic against Docker PostgreSQL
 - Application queries: Raw SQL files (no ORM dependency at runtime)
+
+### Database Connection Pattern
+We use clean context managers to eliminate boilerplate:
+- `get_db_transaction()` - For transactional operations with auto-commit/rollback
+- `get_db_connection()` - For simple read queries
+- No repetitive `pool.acquire()` and `conn.transaction()` code
+- Pattern reusable across all endpoints
+
+### Prompt Management Pattern
+LLM prompts stored as external files (like SQL):
+- `backend/app/prompts/*.txt` - Prompt template files
+- `load_prompt()` helper function loads prompts
+- Consistent with SQL file pattern
+- Easy to version control and edit without touching code
+- Scalable for multiple prompts
 
 ## Database Schema Overview
 

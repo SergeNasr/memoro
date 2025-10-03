@@ -84,7 +84,9 @@ memoro/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app
-│   │   ├── sql/                 # Raw SQL queries
+│   │   ├── db.py                # Database connection pool & helpers
+│   │   ├── sql/                 # Raw SQL queries (by domain)
+│   │   ├── prompts/             # LLM prompt templates
 │   │   ├── routers/             # API endpoints
 │   │   ├── services/            # Business logic
 │   │   └── templates/           # Jinja2 templates
@@ -114,14 +116,16 @@ ENVIRONMENT=development
 
 ### ✅ Currently Available
 - 🤖 **POST /api/interactions/analyze** - LLM-powered extraction of contact info and interaction details from natural text
+- 💾 **POST /api/interactions/confirm** - Persist analyzed interactions to database with automatic contact creation and family linking
 - ❤️ Health check endpoint
 - 🏗️ Database schema with PostgreSQL + pgvector support
+- 🔄 Transaction-based database operations with auto-commit/rollback
+- 📁 Clean architecture with SQL files and prompt templates
 - 🧪 Comprehensive unit tests with reusable mocks
 - 📝 Structured logging with colored console output
 - 🔄 Alembic migrations for schema management
 
 ### 🚧 Coming Soon
-- 📝 Confirm and persist analyzed interactions
 - 🔍 Semantic search using embeddings
 - 👥 CRUD operations for contacts and interactions
 - 📊 Contact summaries
@@ -184,6 +188,54 @@ Analyzes raw interaction text using LLM to extract structured information.
 - Returns confidence scores for all extracted data
 - Preserves original text for reference
 
+---
+
+### POST /api/interactions/confirm
+
+Confirms and persists the analyzed interaction data to the database.
+
+**Request:**
+```json
+{
+  "contact": {
+    "first_name": "Sarah",
+    "last_name": "Johnson",
+    "birthday": "1985-03-15",
+    "confidence": 0.95
+  },
+  "interaction": {
+    "notes": "Had coffee together, discussed daughter starting college",
+    "location": "Starbucks",
+    "interaction_date": "2025-10-02",
+    "confidence": 0.9
+  },
+  "family_members": [
+    {
+      "first_name": "Emma",
+      "last_name": "Johnson",
+      "relationship": "child",
+      "confidence": 0.85
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "contact_id": "123e4567-e89b-12d3-a456-426614174000",
+  "interaction_id": "987f6543-e21a-45b7-b123-426614174001",
+  "family_members_linked": 1
+}
+```
+
+**Features:**
+- Creates or finds existing contacts (case-insensitive name matching)
+- Creates interaction records with notes, location, and date
+- Automatically creates contacts for family members and links relationships
+- Updates contact's `latest_news` field
+- All operations in a single transaction (auto-commit/rollback)
+
 ## Testing
 
 Run the test suite:
@@ -192,12 +244,14 @@ just test
 ```
 
 Tests include:
-- ✅ Successful interaction analysis
+- ✅ Successful interaction analysis with LLM
+- ✅ Interaction confirmation and database persistence
+- ✅ Family member linking
 - ✅ Request validation (empty/missing text)
 - ✅ API error handling
 - ✅ Health check endpoint
 
-All tests use mocked OpenRouter API calls (no external dependencies).
+All tests use mocked external dependencies (OpenRouter API, database transactions).
 
 ## Architecture Decisions
 
