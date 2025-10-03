@@ -5,8 +5,15 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from httpx import HTTPError
 
 from backend.app.config import settings
+from backend.app.exceptions import (
+    MemoroException,
+    general_exception_handler,
+    http_error_handler,
+    memoro_exception_handler,
+)
 from backend.app.logger import setup_logging
 from backend.app.routers import interactions
 
@@ -48,6 +55,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register exception handlers
+app.add_exception_handler(MemoroException, memoro_exception_handler)
+app.add_exception_handler(HTTPError, http_error_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 # Register routers
 app.include_router(interactions.router)

@@ -89,8 +89,9 @@ class TestAnalyzeInteraction:
                 json={"text": "Test interaction text"},
             )
 
-        assert response.status_code == 500
-        assert "Failed to analyze interaction" in response.json()["detail"]
+        # HTTPError is caught by global exception handler and returns 503
+        assert response.status_code == 503
+        assert "External service unavailable" in response.json()["detail"]
 
 
 class TestConfirmInteraction:
