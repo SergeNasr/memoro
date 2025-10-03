@@ -3,14 +3,15 @@
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 
-from backend.app.db import get_db_transaction, load_sql
+from backend.app.db import get_db_connection, get_db_transaction, load_sql
 from backend.app.models import (
     AnalyzeInteractionRequest,
     AnalyzeInteractionResponse,
     ConfirmInteractionRequest,
     ConfirmInteractionResponse,
+    Interaction,
 )
 from backend.app.services.llm import analyze_interaction
 
@@ -23,6 +24,7 @@ SQL_FIND_OR_CREATE_CONTACT = load_sql("contacts/find_or_create.sql")
 SQL_UPDATE_LATEST_NEWS = load_sql("contacts/update_latest_news.sql")
 SQL_CREATE_INTERACTION = load_sql("interactions/create.sql")
 SQL_CREATE_FAMILY_MEMBER = load_sql("family_members/create.sql")
+SQL_LIST_INTERACTIONS_BY_CONTACT = load_sql("interactions/list_by_contact.sql")
 
 
 @router.post("/analyze", response_model=AnalyzeInteractionResponse, status_code=status.HTTP_200_OK)
