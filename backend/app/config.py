@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     # Database
     database_url: str
 
-    # OpenRouter API
-    openrouter_api_key: str
+    # OpenAI API
+    openai_api_key: str
 
     # Google OAuth
     google_client_id: str

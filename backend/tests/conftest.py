@@ -32,7 +32,7 @@ def test_user_id() -> UUID:
 
 @pytest.fixture
 def mock_openrouter_response():
-    """Mock OpenRouter API response for interaction analysis."""
+    """Mock OpenAI API response for interaction analysis."""
     return {
         "choices": [
             {
@@ -68,12 +68,12 @@ def mock_openrouter_response():
 @pytest.fixture
 def mock_openrouter_client(mock_openrouter_response):
     """
-    Mock httpx.AsyncClient for OpenRouter API calls.
+    Mock httpx.AsyncClient for OpenAI API calls.
 
     Usage in tests:
         async def test_something(mock_openrouter_client):
             with mock_openrouter_client:
-                # Your test code that calls OpenRouter
+                # Your test code that calls OpenAI API
                 result = await analyze_interaction("test text")
     """
     mock_response = Mock()
