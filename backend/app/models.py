@@ -165,3 +165,23 @@ class FamilyMember(BaseModel):
     contact_id: UUID
     family_contact_id: UUID
     relationship: str
+
+
+class FamilyMemberWithDetails(BaseModel):
+    """Family member with contact details."""
+
+    id: UUID
+    family_contact_id: UUID
+    relationship: str
+    first_name: str
+    last_name: str
+
+
+class ContactSummary(BaseModel):
+    """Contact summary with statistics and recent activity."""
+
+    contact: Contact
+    total_interactions: int
+    recent_interactions: list[Interaction]
+    family_members: list[FamilyMemberWithDetails]
+    last_interaction_date: date | None

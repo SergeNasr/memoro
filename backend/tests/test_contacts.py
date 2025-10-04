@@ -393,3 +393,210 @@ class TestListContactInteractions:
 
         assert response.status_code == 404
         assert "Contact not found" in response.json()["detail"]
+
+
+class TestGetContactSummary:
+    """Tests for GET /api/contacts/{id}/summary endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_contact_summary_success(self, client: AsyncClient, mock_db_connection):
+        """Test successful contact summary retrieval with all data."""
+
+        contact_id = uuid4()
+        family_member_id = uuid4()
+        interaction1_id = uuid4()
+        interaction2_id = uuid4()
+
+        # Mock 5 sequential fetchrow/fetch calls:
+        # 1. Contact basic info
+        # 2. Interaction count
+        # 3. Recent interactions
+        # 4. Family members
+        # 5. Last interaction date
+
+        mock_db_connection.fetchrow.side_effect = [
+            # 1. Contact basic info
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Alice",
+                last_name="Anderson",
+                birthday=date(1990, 1, 1),
+                latest_news="Recent update",
+            ),
+            # 2. Interaction count
+            mock_db_connection.make_record(total=10),
+            # 5. Last interaction date
+            mock_db_connection.make_record(last_interaction_date=date(2024, 1, 15)),
+        ]
+
+        mock_db_connection.fetch.side_effect = [
+            # 3. Recent interactions
+            [
+                mock_db_connection.make_record(
+                    id=interaction1_id,
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    contact_id=contact_id,
+                    interaction_date=date(2024, 1, 15),
+                    notes="Coffee meeting",
+                    location="Starbucks",
+                ),
+                mock_db_connection.make_record(
+                    id=interaction2_id,
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    contact_id=contact_id,
+                    interaction_date=date(2024, 1, 10),
+                    notes="Phone call",
+                    location=None,
+                ),
+            ],
+            # 4. Family members
+            [
+                mock_db_connection.make_record(
+                    id=uuid4(),
+                    family_contact_id=family_member_id,
+                    relationship="spouse",
+                    first_name="Bob",
+                    last_name="Anderson",
+                ),
+            ],
+        ]
+
+        response = await client.get(f"/api/contacts/{contact_id}/summary")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify contact info
+        assert data["contact"]["id"] == str(contact_id)
+        assert data["contact"]["first_name"] == "Alice"
+        assert data["contact"]["last_name"] == "Anderson"
+        assert data["contact"]["birthday"] == "1990-01-01"
+        assert data["contact"]["latest_news"] == "Recent update"
+
+        # Verify statistics
+        assert data["total_interactions"] == 10
+        assert data["last_interaction_date"] == "2024-01-15"
+
+        # Verify recent interactions
+        assert len(data["recent_interactions"]) == 2
+        assert data["recent_interactions"][0]["id"] == str(interaction1_id)
+        assert data["recent_interactions"][0]["notes"] == "Coffee meeting"
+        assert data["recent_interactions"][1]["id"] == str(interaction2_id)
+
+        # Verify family members
+        assert len(data["family_members"]) == 1
+        assert data["family_members"][0]["family_contact_id"] == str(family_member_id)
+        assert data["family_members"][0]["relationship"] == "spouse"
+        assert data["family_members"][0]["first_name"] == "Bob"
+
+    @pytest.mark.asyncio
+    async def test_get_contact_summary_no_interactions(
+        self, client: AsyncClient, mock_db_connection
+    ):
+        """Test contact summary with no interactions."""
+
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.side_effect = [
+            # Contact basic info
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Charlie",
+                last_name="Chen",
+                birthday=None,
+                latest_news=None,
+            ),
+            # Interaction count (0)
+            mock_db_connection.make_record(total=0),
+            # Last interaction date (None)
+            mock_db_connection.make_record(last_interaction_date=None),
+        ]
+
+        mock_db_connection.fetch.side_effect = [
+            # Recent interactions (empty)
+            [],
+            # Family members (empty)
+            [],
+        ]
+
+        response = await client.get(f"/api/contacts/{contact_id}/summary")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["contact"]["first_name"] == "Charlie"
+        assert data["total_interactions"] == 0
+        assert data["last_interaction_date"] is None
+        assert len(data["recent_interactions"]) == 0
+        assert len(data["family_members"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_contact_summary_no_family(self, client: AsyncClient, mock_db_connection):
+        """Test contact summary with no family members."""
+
+        contact_id = uuid4()
+        interaction_id = uuid4()
+
+        mock_db_connection.fetchrow.side_effect = [
+            # Contact basic info
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Diana",
+                last_name="Davis",
+                birthday=date(1995, 5, 5),
+                latest_news="Promoted to manager",
+            ),
+            # Interaction count
+            mock_db_connection.make_record(total=3),
+            # Last interaction date
+            mock_db_connection.make_record(last_interaction_date=date(2024, 1, 20)),
+        ]
+
+        mock_db_connection.fetch.side_effect = [
+            # Recent interactions
+            [
+                mock_db_connection.make_record(
+                    id=interaction_id,
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    contact_id=contact_id,
+                    interaction_date=date(2024, 1, 20),
+                    notes="Lunch",
+                    location="Restaurant",
+                ),
+            ],
+            # Family members (empty)
+            [],
+        ]
+
+        response = await client.get(f"/api/contacts/{contact_id}/summary")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["contact"]["first_name"] == "Diana"
+        assert data["total_interactions"] == 3
+        assert len(data["recent_interactions"]) == 1
+        assert len(data["family_members"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_contact_summary_not_found(self, client: AsyncClient, mock_db_connection):
+        """Test contact summary for non-existent contact."""
+
+        contact_id = uuid4()
+
+        # Contact not found
+        mock_db_connection.fetchrow.return_value = None
+
+        response = await client.get(f"/api/contacts/{contact_id}/summary")
+
+        assert response.status_code == 404
+        assert "Contact not found" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_get_contact_summary_invalid_uuid(self, client: AsyncClient, mock_db_connection):
+        """Test contact summary with invalid UUID."""
+        response = await client.get("/api/contacts/not-a-uuid/summary")
+        assert response.status_code == 422  # Validation error
