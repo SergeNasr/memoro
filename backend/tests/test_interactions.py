@@ -405,6 +405,44 @@ class TestUpdateInteraction:
         assert response.status_code == 200
 
 
+class TestDeleteInteraction:
+    """Tests for DELETE /api/interactions/{id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_delete_interaction_success(self, client: AsyncClient, mock_db_connection):
+        """Test successful interaction deletion."""
+
+        interaction_id = uuid4()
+
+        # Mock fetchrow (delete returns deleted row id)
+        mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(id=interaction_id)
+
+        response = await client.delete(f"/api/interactions/{interaction_id}")
+
+        assert response.status_code == 204
+        assert response.content == b""  # No content for 204
+
+    @pytest.mark.asyncio
+    async def test_delete_interaction_not_found(self, client: AsyncClient, mock_db_connection):
+        """Test deleting non-existent interaction."""
+
+        interaction_id = uuid4()
+
+        # Mock fetchrow returns None (interaction not found)
+        mock_db_connection.fetchrow.return_value = None
+
+        response = await client.delete(f"/api/interactions/{interaction_id}")
+
+        assert response.status_code == 404
+        assert "Interaction not found" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_delete_interaction_invalid_uuid(self, client: AsyncClient, mock_db_connection):
+        """Test deleting with invalid UUID."""
+        response = await client.delete("/api/interactions/not-a-uuid")
+        assert response.status_code == 422  # Validation error
+
+
 class TestHealthCheck:
     """Tests for health check endpoint."""
 
