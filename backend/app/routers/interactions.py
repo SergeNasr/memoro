@@ -13,6 +13,7 @@ from backend.app.models import (
     ConfirmInteractionRequest,
     ConfirmInteractionResponse,
     Interaction,
+    InteractionUpdate,
 )
 from backend.app.services.llm import analyze_interaction
 
@@ -27,6 +28,7 @@ SQL_CREATE_INTERACTION = load_sql("interactions/create.sql")
 SQL_CREATE_FAMILY_MEMBER = load_sql("family_members/create.sql")
 SQL_LIST_INTERACTIONS_BY_CONTACT = load_sql("interactions/list_by_contact.sql")
 SQL_GET_INTERACTION_BY_ID = load_sql("interactions/get_by_id.sql")
+SQL_UPDATE_INTERACTION = load_sql("interactions/update.sql")
 
 
 @router.post("/analyze", response_model=AnalyzeInteractionResponse, status_code=status.HTTP_200_OK)
@@ -178,5 +180,50 @@ async def get_interaction(
     )
 
     logger.info("interaction_retrieved", interaction_id=str(interaction_id), user_id=str(user_id))
+
+    return interaction
+
+
+@router.patch("/{interaction_id}", response_model=Interaction, status_code=status.HTTP_200_OK)
+async def update_interaction(
+    interaction_id: UUID,
+    interaction_update: InteractionUpdate,
+    # TODO: Add user authentication and get user_id from session
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+) -> Interaction:
+    """
+    Update an interaction's details.
+
+    All fields are optional. Only provided fields will be updated.
+    Returns 404 if interaction not found or doesn't belong to the user.
+    """
+    row = await conn.fetchrow(
+        SQL_UPDATE_INTERACTION,
+        interaction_id,
+        user_id,
+        interaction_update.notes,
+        interaction_update.location,
+        interaction_update.interaction_date,
+    )
+
+    if row is None:
+        logger.warning(
+            "interaction_not_found_for_update",
+            interaction_id=str(interaction_id),
+            user_id=str(user_id),
+        )
+        raise HTTPException(status_code=404, detail="Interaction not found")
+
+    interaction = Interaction(
+        id=row["id"],
+        user_id=row["user_id"],
+        contact_id=row["contact_id"],
+        interaction_date=row["interaction_date"],
+        notes=row["notes"],
+        location=row["location"],
+    )
+
+    logger.info("interaction_updated", interaction_id=str(interaction_id), user_id=str(user_id))
 
     return interaction
