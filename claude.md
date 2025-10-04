@@ -32,7 +32,7 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - **Tailwind CSS** - Utility-first styling
 
 ### AI/Embeddings
-- **OpenRouter API** - For generating text embeddings
+- **OpenAI API** - For LLM analysis and generating text embeddings
 - No local models needed
 - Embeddings stored in pgvector for semantic search
 
@@ -92,7 +92,7 @@ memoro/
 │   │   │   └── interactions.py     # Interaction endpoints
 │   │   ├── services/
 │   │   │   ├── __init__.py
-│   │   │   ├── llm.py              # OpenRouter API client for LLM
+│   │   │   ├── llm.py              # OpenAI API client for LLM analysis
 │   │   │   ├── embeddings.py       # Embedding generation
 │   │   │   └── search.py           # Semantic search logic
 │   │   ├── sql/                    # Raw SQL queries (by domain)
@@ -167,9 +167,9 @@ memoro/
 - No query builders or string concatenation
 - Reusable across different parts of the application
 
-### Why OpenRouter Instead of Local Models?
+### Why OpenAI API Instead of Local Models?
 - No local GPU/compute requirements
-- Access to best-in-class embedding models
+- Access to best-in-class models (GPT-4o for analysis)
 - Scalable without infrastructure changes
 - Cost-effective for personal CRM use case
 - Simplified deployment
@@ -304,7 +304,7 @@ Global exception handlers eliminate repetitive try/except blocks:
 - Add connection pooling configuration
 - Consider read replicas for search queries
 - Cache frequently accessed contacts
-- Rate limiting for OpenRouter API
+- Rate limiting for OpenAI API
 
 ### Features
 - Email notifications for birthdays
@@ -324,7 +324,7 @@ Global exception handlers eliminate repetitive try/except blocks:
 
 ```
 DATABASE_URL=postgresql://user:pass@localhost:5432/memoro
-OPENROUTER_API_KEY=sk-...
+OPENAI_API_KEY=sk-...
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 SECRET_KEY=...  # for session signing
@@ -355,7 +355,7 @@ ENVIRONMENT=development  # or production
 - colorama
 
 ### AI/Embeddings
-- openai  # OpenRouter client compatible
+- openai  # OpenAI API client
 
 ### Testing
 - pytest
@@ -389,5 +389,5 @@ ENVIRONMENT=development  # or production
 - Test file names: `test_*.py`
 - One test class per feature
 - Use fixtures for common setup
-- Mock external APIs (OpenRouter)
+- Mock external APIs (OpenAI)
 - Aim for >80% coverage on core logic

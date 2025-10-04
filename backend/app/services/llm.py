@@ -1,4 +1,4 @@
-"""LLM service for interaction analysis using OpenRouter API."""
+"""LLM service for interaction analysis using OpenAI API."""
 
 import json
 from datetime import date
@@ -17,7 +17,7 @@ from backend.app.models import (
 
 logger = structlog.get_logger(__name__)
 
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
 def load_prompt(filename: str) -> str:
@@ -44,7 +44,7 @@ def load_prompt(filename: str) -> str:
 
 async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
     """
-    Analyze interaction text using OpenRouter API to extract structured data.
+    Analyze interaction text using OpenAI API to extract structured data.
 
     Args:
         text: Raw interaction text
@@ -65,15 +65,13 @@ async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                f"{OPENROUTER_BASE_URL}/chat/completions",
+                f"{OPENAI_BASE_URL}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {settings.openrouter_api_key}",
-                    "HTTP-Referer": "https://github.com/memoro",
-                    "X-Title": "Memoro",
+                    "Authorization": f"Bearer {settings.openai_api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "anthropic/claude-3.5-sonnet",
+                    "model": "gpt-4o",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.1,  # Low temperature for more consistent extraction
                 },
@@ -82,9 +80,9 @@ async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
             response.raise_for_status()
 
             data = response.json()
-            logger.debug("openrouter_response", response=data)
+            logger.debug("openai_response", response=data)
 
-            # Extract the content from OpenRouter response
+            # Extract the content from OpenAI response
             content = data["choices"][0]["message"]["content"]
 
             # Parse the JSON response
@@ -109,12 +107,12 @@ async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
             return result
 
         except httpx.HTTPError as e:
-            logger.error("openrouter_http_error", error=str(e))
+            logger.error("openai_http_error", error=str(e))
             raise
         except (KeyError, json.JSONDecodeError, ValueError) as e:
             logger.error(
-                "openrouter_parse_error",
+                "openai_parse_error",
                 error=str(e),
                 content=content if "content" in locals() else None,
             )
-            raise ValueError(f"Failed to parse OpenRouter response: {e}") from e
+            raise ValueError(f"Failed to parse OpenAI response: {e}") from e

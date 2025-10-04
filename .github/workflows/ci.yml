@@ -31,7 +31,7 @@ jobs:
       run: just test
       env:
         DATABASE_URL: "postgresql://test:test@localhost:5432/test"
-        OPENROUTER_API_KEY: "test-key"
+        OPENAI_API_KEY: "test-key"
         GOOGLE_CLIENT_ID: "test-client-id"
         GOOGLE_CLIENT_SECRET: "test-client-secret"
         SECRET_KEY: "test-secret-key"
