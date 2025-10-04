@@ -301,6 +301,110 @@ class TestGetInteraction:
         assert response.status_code == 422  # Validation error
 
 
+class TestUpdateInteraction:
+    """Tests for PATCH /api/interactions/{id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_update_interaction_success(self, client: AsyncClient, mock_db_connection):
+        """Test successful interaction update."""
+
+        interaction_id = uuid4()
+        contact_id = uuid4()
+
+        # Mock fetchrow (update returns updated row)
+        mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(
+            id=interaction_id,
+            user_id=UUID("00000000-0000-0000-0000-000000000000"),
+            contact_id=contact_id,
+            interaction_date=date(2025, 10, 3),  # Updated date
+            notes="Updated notes about coffee",  # Updated notes
+            location="Updated Starbucks",  # Updated location
+        )
+
+        response = await client.patch(
+            f"/api/interactions/{interaction_id}",
+            json={
+                "notes": "Updated notes about coffee",
+                "location": "Updated Starbucks",
+                "interaction_date": "2025-10-03",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["id"] == str(interaction_id)
+        assert data["contact_id"] == str(contact_id)
+        assert data["notes"] == "Updated notes about coffee"
+        assert data["location"] == "Updated Starbucks"
+        assert data["interaction_date"] == "2025-10-03"
+
+    @pytest.mark.asyncio
+    async def test_update_interaction_not_found(self, client: AsyncClient, mock_db_connection):
+        """Test updating non-existent interaction."""
+
+        interaction_id = uuid4()
+
+        # Mock fetchrow returns None (interaction not found)
+        mock_db_connection.fetchrow.return_value = None
+
+        response = await client.patch(
+            f"/api/interactions/{interaction_id}", json={"notes": "Updated"}
+        )
+
+        assert response.status_code == 404
+        assert "Interaction not found" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_update_interaction_partial(self, client: AsyncClient, mock_db_connection):
+        """Test partial update (only some fields)."""
+
+        interaction_id = uuid4()
+        contact_id = uuid4()
+
+        # Mock fetchrow - only notes updated
+        mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(
+            id=interaction_id,
+            user_id=UUID("00000000-0000-0000-0000-000000000000"),
+            contact_id=contact_id,
+            interaction_date=date(2025, 10, 2),  # Unchanged
+            notes="Updated notes only",  # Updated
+            location="Starbucks",  # Unchanged
+        )
+
+        response = await client.patch(
+            f"/api/interactions/{interaction_id}", json={"notes": "Updated notes only"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["notes"] == "Updated notes only"
+        assert data["location"] == "Starbucks"
+        assert data["interaction_date"] == "2025-10-02"
+
+    @pytest.mark.asyncio
+    async def test_update_interaction_empty_body(self, client: AsyncClient, mock_db_connection):
+        """Test update with empty body (no fields to update)."""
+
+        interaction_id = uuid4()
+        contact_id = uuid4()
+
+        # Mock fetchrow - nothing changed
+        mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(
+            id=interaction_id,
+            user_id=UUID("00000000-0000-0000-0000-000000000000"),
+            contact_id=contact_id,
+            interaction_date=date(2025, 10, 2),
+            notes="Original notes",
+            location="Starbucks",
+        )
+
+        response = await client.patch(f"/api/interactions/{interaction_id}", json={})
+
+        assert response.status_code == 200
+
+
 class TestDeleteInteraction:
     """Tests for DELETE /api/interactions/{id} endpoint."""
 
