@@ -8,7 +8,14 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from backend.app.db import get_db_dependency, load_sql
-from backend.app.models import Contact, ContactListResponse, ContactUpdate, Interaction
+from backend.app.models import (
+    Contact,
+    ContactListResponse,
+    ContactSummary,
+    ContactUpdate,
+    FamilyMemberWithDetails,
+    Interaction,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -21,6 +28,10 @@ SQL_GET_CONTACT_BY_ID = load_sql("contacts/get_by_id.sql")
 SQL_UPDATE_CONTACT = load_sql("contacts/update.sql")
 SQL_DELETE_CONTACT = load_sql("contacts/delete.sql")
 SQL_LIST_INTERACTIONS_BY_CONTACT = load_sql("interactions/list_by_contact.sql")
+SQL_COUNT_INTERACTIONS = load_sql("contacts/count_interactions.sql")
+SQL_RECENT_INTERACTIONS = load_sql("contacts/recent_interactions.sql")
+SQL_FAMILY_MEMBERS_WITH_DETAILS = load_sql("contacts/family_members_with_details.sql")
+SQL_LAST_INTERACTION_DATE = load_sql("contacts/last_interaction_date.sql")
 
 
 @router.get("", response_model=ContactListResponse, status_code=status.HTTP_200_OK)
@@ -108,6 +119,97 @@ async def get_contact(
     logger.info("contact_retrieved", contact_id=str(contact_id), user_id=str(user_id))
 
     return contact
+
+
+@router.get("/{contact_id}/summary", response_model=ContactSummary, status_code=status.HTTP_200_OK)
+async def get_contact_summary(
+    contact_id: UUID,
+    # TODO: Add user authentication and get user_id from session
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+) -> ContactSummary:
+    """
+    Get comprehensive summary for a contact.
+
+    Includes:
+    - Contact basic information
+    - Total number of interactions
+    - Recent interactions (last 5)
+    - Family members with details
+    - Date of last interaction
+
+    Returns 404 if contact not found or doesn't belong to the user.
+    """
+    # 1. Get contact basic info
+    contact_row = await conn.fetchrow(SQL_GET_CONTACT_BY_ID, contact_id, user_id)
+
+    if contact_row is None:
+        logger.warning(
+            "contact_not_found_for_summary", contact_id=str(contact_id), user_id=str(user_id)
+        )
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    contact = Contact(
+        id=contact_row["id"],
+        user_id=contact_row["user_id"],
+        first_name=contact_row["first_name"],
+        last_name=contact_row["last_name"],
+        birthday=contact_row["birthday"],
+        latest_news=contact_row["latest_news"],
+    )
+
+    # 2. Get total interaction count
+    count_row = await conn.fetchrow(SQL_COUNT_INTERACTIONS, contact_id, user_id)
+    total_interactions = count_row["total"] if count_row else 0
+
+    # 3. Get recent interactions
+    recent_rows = await conn.fetch(SQL_RECENT_INTERACTIONS, contact_id, user_id)
+    recent_interactions = [
+        Interaction(
+            id=row["id"],
+            user_id=row["user_id"],
+            contact_id=row["contact_id"],
+            interaction_date=row["interaction_date"],
+            notes=row["notes"],
+            location=row["location"],
+        )
+        for row in recent_rows
+    ]
+
+    # 4. Get family members with details
+    family_rows = await conn.fetch(SQL_FAMILY_MEMBERS_WITH_DETAILS, contact_id, user_id)
+    family_members = [
+        FamilyMemberWithDetails(
+            id=row["id"],
+            family_contact_id=row["family_contact_id"],
+            relationship=row["relationship"],
+            first_name=row["first_name"],
+            last_name=row["last_name"],
+        )
+        for row in family_rows
+    ]
+
+    # 5. Get last interaction date
+    last_date_row = await conn.fetchrow(SQL_LAST_INTERACTION_DATE, contact_id, user_id)
+    last_interaction_date = last_date_row["last_interaction_date"] if last_date_row else None
+
+    summary = ContactSummary(
+        contact=contact,
+        total_interactions=total_interactions,
+        recent_interactions=recent_interactions,
+        family_members=family_members,
+        last_interaction_date=last_interaction_date,
+    )
+
+    logger.info(
+        "contact_summary_retrieved",
+        contact_id=str(contact_id),
+        user_id=str(user_id),
+        total_interactions=total_interactions,
+        family_members_count=len(family_members),
+    )
+
+    return summary
 
 
 @router.patch("/{contact_id}", response_model=Contact, status_code=status.HTTP_200_OK)
