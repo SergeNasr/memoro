@@ -14,7 +14,7 @@ A personal CRM for tracking daily interactions with people in your life. Record 
 - **Database**: PostgreSQL + pgvector for semantic search
 - **Frontend**: HTMX + Jinja2 + Tailwind CSS
 - **Auth**: Google OAuth 2.0
-- **AI**: OpenRouter API for embeddings
+- **AI**: OpenAI API for LLM analysis and embeddings
 - **Testing**: pytest + pytest-postgresql (in-memory)
 
 ## Prerequisites
@@ -35,7 +35,7 @@ A personal CRM for tracking daily interactions with people in your life. Record 
 2. **Configure environment**
    ```bash
    cp .env.example .env
-   # Edit .env and add your OPENROUTER_API_KEY
+   # Edit .env and add your OPENAI_API_KEY
    ```
 
 3. **Start PostgreSQL**
@@ -111,7 +111,7 @@ memoro/
 
 ```env
 DATABASE_URL=postgresql://user:pass@localhost:5432/memoro
-OPENROUTER_API_KEY=sk-...
+OPENAI_API_KEY=sk-...
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 SECRET_KEY=...
@@ -196,7 +196,7 @@ just test
 **Testing Approach:**
 - FastAPI dependency injection with automatic overrides
 - Mocked database connections and transactions
-- Mocked OpenRouter API calls
+- Mocked OpenAI API calls
 - In-memory PostgreSQL via pytest-postgresql
 - No external dependencies required
 

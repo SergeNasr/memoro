@@ -503,6 +503,61 @@
         }
       }
     },
+    "/api/contacts/{contact_id}/summary": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Get Contact Summary",
+        "description": "Get comprehensive summary for a contact.\n\nIncludes:\n- Contact basic information\n- Total number of interactions\n- Recent interactions (last 5)\n- Family members with details\n- Date of last interaction\n\nReturns 404 if contact not found or doesn't belong to the user.",
+        "operationId": "get_contact_summary_api_contacts__contact_id__summary_get",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contact Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "default": "00000000-0000-0000-0000-000000000000",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/contacts/{contact_id}/interactions": {
       "get": {
         "tags": [
@@ -545,6 +600,61 @@
                     "$ref": "#/components/schemas/Interaction"
                   },
                   "title": "Response List Contact Interactions Api Contacts  Contact Id  Interactions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Search",
+        "description": "Unified search endpoint for contacts and interactions.\n\nSupports three search types:\n- semantic: Vector similarity search on interaction embeddings\n- fuzzy: Trigram similarity matching on text fields\n- term: Basic ILIKE pattern matching\n\nReturns combined results from contacts and interactions, sorted by relevance.",
+        "operationId": "search_api_search_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "default": "00000000-0000-0000-0000-000000000000",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
                 }
               }
             }
@@ -774,6 +884,53 @@
         "title": "ContactListResponse",
         "description": "Paginated contact list response."
       },
+      "ContactSummary": {
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "total_interactions": {
+            "type": "integer",
+            "title": "Total Interactions"
+          },
+          "recent_interactions": {
+            "items": {
+              "$ref": "#/components/schemas/Interaction"
+            },
+            "type": "array",
+            "title": "Recent Interactions"
+          },
+          "family_members": {
+            "items": {
+              "$ref": "#/components/schemas/FamilyMemberWithDetails"
+            },
+            "type": "array",
+            "title": "Family Members"
+          },
+          "last_interaction_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Interaction Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact",
+          "total_interactions",
+          "recent_interactions",
+          "family_members",
+          "last_interaction_date"
+        ],
+        "title": "ContactSummary",
+        "description": "Contact summary with statistics and recent activity."
+      },
       "ContactUpdate": {
         "properties": {
           "first_name": {
@@ -969,6 +1126,42 @@
         "title": "ExtractedInteraction",
         "description": "Extracted interaction details."
       },
+      "FamilyMemberWithDetails": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "family_contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Family Contact Id"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship"
+          },
+          "first_name": {
+            "type": "string",
+            "title": "First Name"
+          },
+          "last_name": {
+            "type": "string",
+            "title": "Last Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "family_contact_id",
+          "relationship",
+          "first_name",
+          "last_name"
+        ],
+        "title": "FamilyMemberWithDetails",
+        "description": "Family member with contact details."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1071,6 +1264,216 @@
         "type": "object",
         "title": "InteractionUpdate",
         "description": "Interaction update request (all fields optional)."
+      },
+      "SearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "search_type": {
+            "type": "string",
+            "pattern": "^(semantic|fuzzy|term)$",
+            "title": "Search Type",
+            "description": "Search type: 'semantic', 'fuzzy', or 'term'",
+            "default": "semantic"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Maximum number of results to return",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SearchRequest",
+        "description": "Request model for unified search."
+      },
+      "SearchResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "search_type": {
+            "type": "string",
+            "title": "Search Type"
+          },
+          "total_results": {
+            "type": "integer",
+            "title": "Total Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results",
+          "query",
+          "search_type",
+          "total_results"
+        ],
+        "title": "SearchResponse",
+        "description": "Search results response."
+      },
+      "SearchResult": {
+        "properties": {
+          "result_type": {
+            "type": "string",
+            "title": "Result Type",
+            "description": "Type of result: 'contact' or 'interaction'"
+          },
+          "contact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchResultContact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interaction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchResultInteraction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "description": "Relevance score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_type",
+          "score"
+        ],
+        "title": "SearchResult",
+        "description": "Unified search result."
+      },
+      "SearchResultContact": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "first_name": {
+            "type": "string",
+            "title": "First Name"
+          },
+          "last_name": {
+            "type": "string",
+            "title": "Last Name"
+          },
+          "birthday": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthday"
+          },
+          "latest_news": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest News"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "first_name",
+          "last_name",
+          "birthday",
+          "latest_news"
+        ],
+        "title": "SearchResultContact",
+        "description": "Contact information in search results."
+      },
+      "SearchResultInteraction": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contact Id"
+          },
+          "interaction_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Interaction Date"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "contact_first_name": {
+            "type": "string",
+            "title": "Contact First Name"
+          },
+          "contact_last_name": {
+            "type": "string",
+            "title": "Contact Last Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "contact_id",
+          "interaction_date",
+          "notes",
+          "location",
+          "contact_first_name",
+          "contact_last_name"
+        ],
+        "title": "SearchResultInteraction",
+        "description": "Interaction information in search results."
       },
       "ValidationError": {
         "properties": {
