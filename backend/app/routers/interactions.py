@@ -27,6 +27,7 @@ SQL_CREATE_INTERACTION = load_sql("interactions/create.sql")
 SQL_CREATE_FAMILY_MEMBER = load_sql("family_members/create.sql")
 SQL_LIST_INTERACTIONS_BY_CONTACT = load_sql("interactions/list_by_contact.sql")
 SQL_GET_INTERACTION_BY_ID = load_sql("interactions/get_by_id.sql")
+SQL_DELETE_INTERACTION = load_sql("interactions/delete.sql")
 
 
 @router.post("/analyze", response_model=AnalyzeInteractionResponse, status_code=status.HTTP_200_OK)
@@ -180,3 +181,28 @@ async def get_interaction(
     logger.info("interaction_retrieved", interaction_id=str(interaction_id), user_id=str(user_id))
 
     return interaction
+
+
+@router.delete("/{interaction_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_interaction(
+    interaction_id: UUID,
+    # TODO: Add user authentication and get user_id from session
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+) -> None:
+    """
+    Delete an interaction.
+
+    Returns 404 if interaction not found or doesn't belong to the user.
+    """
+    row = await conn.fetchrow(SQL_DELETE_INTERACTION, interaction_id, user_id)
+
+    if row is None:
+        logger.warning(
+            "interaction_not_found_for_delete",
+            interaction_id=str(interaction_id),
+            user_id=str(user_id),
+        )
+        raise HTTPException(status_code=404, detail="Interaction not found")
+
+    logger.info("interaction_deleted", interaction_id=str(interaction_id), user_id=str(user_id))
