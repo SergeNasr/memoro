@@ -15,7 +15,7 @@ from backend.app.exceptions import (
     memoro_exception_handler,
 )
 from backend.app.logger import setup_logging
-from backend.app.routers import contacts, interactions
+from backend.app.routers import contacts, interactions, search
 
 # Setup logging
 setup_logging(log_level=settings.log_level, environment=settings.environment)
@@ -64,6 +64,7 @@ app.add_exception_handler(Exception, general_exception_handler)
 # Register routers
 app.include_router(interactions.router)
 app.include_router(contacts.router)
+app.include_router(search.router)
 
 
 @app.get("/health")

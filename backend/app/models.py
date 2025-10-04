@@ -185,3 +185,58 @@ class ContactSummary(BaseModel):
     recent_interactions: list[Interaction]
     family_members: list[FamilyMemberWithDetails]
     last_interaction_date: date | None
+
+
+# Search Models
+
+
+class SearchRequest(BaseModel):
+    """Request model for unified search."""
+
+    query: str = Field(..., min_length=1, description="Search query string")
+    search_type: str = Field(
+        "semantic",
+        description="Search type: 'semantic', 'fuzzy', or 'term'",
+        pattern="^(semantic|fuzzy|term)$",
+    )
+    limit: int = Field(10, ge=1, le=100, description="Maximum number of results to return")
+
+
+class SearchResultContact(BaseModel):
+    """Contact information in search results."""
+
+    id: UUID
+    first_name: str
+    last_name: str
+    birthday: date | None
+    latest_news: str | None
+
+
+class SearchResultInteraction(BaseModel):
+    """Interaction information in search results."""
+
+    id: UUID
+    contact_id: UUID
+    interaction_date: date
+    notes: str
+    location: str | None
+    contact_first_name: str
+    contact_last_name: str
+
+
+class SearchResult(BaseModel):
+    """Unified search result."""
+
+    result_type: str = Field(..., description="Type of result: 'contact' or 'interaction'")
+    contact: SearchResultContact | None = None
+    interaction: SearchResultInteraction | None = None
+    score: float = Field(..., ge=0.0, le=1.0, description="Relevance score")
+
+
+class SearchResponse(BaseModel):
+    """Search results response."""
+
+    results: list[SearchResult]
+    query: str
+    search_type: str
+    total_results: int
