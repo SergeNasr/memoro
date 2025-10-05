@@ -5,15 +5,8 @@
 {% block content %}
 <!-- Search bar -->
 <div class="search-container">
-    <input
-        type="text"
-        class="search-input"
-        placeholder="Search contacts..."
-        name="q"
-        hx-get="/ui/search"
-        hx-trigger="keyup changed delay:300ms"
-        hx-target="#search-results"
-    >
+    <input type="text" class="search-input" placeholder="Search contacts..." name="q" hx-get="/ui/search"
+        hx-trigger="keyup changed delay:300ms" hx-target="#search-results">
 </div>
 
 <!-- Search results (initially hidden) -->
@@ -29,7 +22,8 @@
                 {{ contact.first_name }} {{ contact.last_name }}
             </a>
             {% if contact.latest_news %}
-            <div class="contact-meta">{{ contact.latest_news[:80] }}{% if contact.latest_news|length > 80 %}...{% endif %}</div>
+            <div class="contact-meta">{{ contact.latest_news[:80] }}{% if contact.latest_news|length > 80 %}...{% endif
+                %}</div>
             {% endif %}
         </div>
     </li>
@@ -44,16 +38,15 @@
     {% endif %}
 
     {% for p in range(1, total_pages + 1) %}
-        {% if p == page %}
-        <span class="current">{{ p }}</span>
-        {% else %}
-        <a href="/?page={{ p }}">{{ p }}</a>
-        {% endif %}
+    {% if p == page %}
+    <span class="current">{{ p }}</span>
+    {% else %}
+    <a href="/?page={{ p }}">{{ p }}</a>
+    {% endif %}
     {% endfor %}
 
-    {% if page < total_pages %}
-    <a href="/?page={{ page + 1 }}">next</a>
-    {% endif %}
+    {% if page < total_pages %} <a href="/?page={{ page + 1 }}">next</a>
+        {% endif %}
 </div>
 {% endif %}
 
@@ -77,16 +70,12 @@
         <form hx-post="/ui/interactions/analyze" hx-target="#review-form">
             <div class="form-group">
                 <label for="interaction-text">What happened?</label>
-                <textarea
-                    id="interaction-text"
-                    name="text"
+                <textarea id="interaction-text" name="text"
                     placeholder="e.g., Had coffee with Sarah at Starbucks. She mentioned her daughter Emma is starting college..."
-                    required
-                ></textarea>
+                    required></textarea>
             </div>
 
             <div class="form-actions">
-                <button type="button" class="btn modal-close">Cancel</button>
                 <button type="submit" class="btn btn-primary">Analyze</button>
             </div>
 
