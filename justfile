@@ -91,6 +91,16 @@ db-migrate:
 db-rollback:
     uv run alembic downgrade -1
 
+# Setup development environment with test user
+dev-setup:
+    docker-compose up -d postgres
+    sleep 3
+    uv run alembic upgrade head
+    @echo "Creating test user..."
+    docker-compose exec postgres psql -U memoro -d memoro -c "INSERT INTO \"user\" (id, email, first_name, last_name) VALUES ('00000000-0000-0000-0000-000000000000', 'test@example.com', 'Test', 'User') ON CONFLICT (id) DO NOTHING;"
+    @echo "✅ Development environment ready!"
+    @echo "Run 'just dev' to start the API server"
+
 # Create new migration
 db-revision message:
     uv run alembic revision -m "{{message}}"

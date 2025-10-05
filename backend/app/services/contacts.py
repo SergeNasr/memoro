@@ -50,7 +50,7 @@ async def get_contact_list(
     contacts = [
         Contact(
             id=row["id"],
-            user_id=row["user_id"],
+            user_id=user_id,
             first_name=row["first_name"],
             last_name=row["last_name"],
             birthday=row["birthday"],
