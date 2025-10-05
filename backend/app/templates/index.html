@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Memoro - Your Contacts{% endblock %}
+
+{% block content %}
+<!-- Search bar -->
+<div class="search-container">
+    <input
+        type="text"
+        class="search-input"
+        placeholder="Search contacts... (Ctrl+K)"
+        name="q"
+        hx-get="/ui/search"
+        hx-trigger="keyup changed delay:300ms"
+        hx-target="#search-results"
+    >
+</div>
+
+<!-- Search results (initially hidden) -->
+<div id="search-results"></div>
+
+<!-- Contact list -->
+{% if contacts %}
+<ul class="contact-list">
+    {% for contact in contacts %}
+    <li class="contact-item">
+        <div>
+            <a href="/contacts/{{ contact.id }}" class="contact-name">
+                {{ contact.first_name }} {{ contact.last_name }}
+            </a>
+            {% if contact.latest_news %}
+            <div class="contact-meta">{{ contact.latest_news[:80] }}{% if contact.latest_news|length > 80 %}...{% endif %}</div>
+            {% endif %}
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="/?page={{ page - 1 }}">prev</a>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span class="current">{{ p }}</span>
+        {% else %}
+        <a href="/?page={{ p }}">{{ p }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+    <a href="/?page={{ page + 1 }}">next</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+    <p>Where are your friends? 🤔</p>
+    <p style="margin-top: 8px; font-size: 9pt;">Press the + button or Ctrl+N to add your first interaction</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block modals %}
+<!-- New interaction modal -->
+<div class="modal-overlay" id="new-interaction-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>New Interaction</h2>
+            <button class="modal-close" aria-label="Close">&times;</button>
+        </div>
+
+        <form hx-post="/ui/interactions/analyze" hx-target="#review-form">
+            <div class="form-group">
+                <label for="interaction-text">What happened?</label>
+                <textarea
+                    id="interaction-text"
+                    name="text"
+                    placeholder="e.g., Had coffee with Sarah at Starbucks. She mentioned her daughter Emma is starting college..."
+                    required
+                ></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn modal-close">Cancel</button>
+                <button type="submit" class="btn btn-primary">Analyze</button>
+            </div>
+
+            <!-- Loader shown during HTMX request -->
+            <div class="loader htmx-indicator">Processing...</div>
+        </form>
+
+        <!-- Review form will be inserted here by HTMX -->
+        <div id="review-form"></div>
+    </div>
+</div>
+
+<!-- Floating action button -->
+<button class="fab" title="New Interaction (Ctrl+N)">+</button>
+{% endblock %}
