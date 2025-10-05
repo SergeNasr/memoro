@@ -8,7 +8,7 @@
     <input
         type="text"
         class="search-input"
-        placeholder="Search contacts... (Ctrl+K)"
+        placeholder="Search contacts..."
         name="q"
         hx-get="/ui/search"
         hx-trigger="keyup changed delay:300ms"
@@ -60,7 +60,7 @@
 {% else %}
 <div class="empty-state">
     <p>Where are your friends? 🤔</p>
-    <p style="margin-top: 8px; font-size: 9pt;">Press the + button or Ctrl+N to add your first interaction</p>
+    <p style="margin-top: 8px; font-size: 9pt;">Press the + button to add your first interaction</p>
 </div>
 {% endif %}
 {% endblock %}
@@ -100,5 +100,5 @@
 </div>
 
 <!-- Floating action button -->
-<button class="fab" title="New Interaction (Ctrl+N)">+</button>
+<button class="fab">+</button>
 {% endblock %}
