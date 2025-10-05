@@ -60,11 +60,11 @@
 
 {% block modals %}
 <!-- New interaction modal -->
-<div class="modal-overlay" id="new-interaction-modal">
+<div class="modal-overlay" id="new-interaction-modal" data-modal>
     <div class="modal">
         <div class="modal-header">
             <h2>New Interaction</h2>
-            <button class="modal-close" aria-label="Close">&times;</button>
+            <button data-modal-close aria-label="Close">&times;</button>
         </div>
 
         <form hx-post="/ui/interactions/analyze" hx-target="#review-form">
@@ -89,5 +89,5 @@
 </div>
 
 <!-- Floating action button -->
-<button class="fab">+</button>
+<button class="fab" data-modal-open="new-interaction-modal">+</button>
 {% endblock %}
