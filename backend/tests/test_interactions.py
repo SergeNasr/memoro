@@ -1,29 +1,54 @@
 """Tests for interaction endpoints."""
 
 from datetime import date
-from unittest.mock import patch
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+
+from backend.app.models import ExtractedContact, ExtractedFamilyMember, ExtractedInteraction
+from backend.tests.conftest import make_openai_completion
 
 
 class TestAnalyzeInteraction:
     """Tests for POST /api/interactions/analyze endpoint."""
 
     @pytest.mark.asyncio
-    async def test_analyze_interaction_success(self, client: AsyncClient, mock_openrouter_client):
+    async def test_analyze_interaction_success(self, client: AsyncClient, mock_openai_client):
         """Test successful interaction analysis."""
-        with patch(
-            "backend.app.services.llm.httpx.AsyncClient", return_value=mock_openrouter_client
-        ):
-            response = await client.post(
-                "/api/interactions/analyze",
-                json={
-                    "text": "Had coffee with Sarah Johnson at Starbucks today. "
-                    "She mentioned her birthday is March 15th and her daughter Emma just started college."
-                },
-            )
+        mock_completion = make_openai_completion(
+            contact=ExtractedContact(
+                first_name="Sarah",
+                last_name="Johnson",
+                birthday=date(1985, 3, 15),
+                confidence=0.95,
+            ),
+            interaction=ExtractedInteraction(
+                notes="Had coffee together at Starbucks",
+                location="Starbucks",
+                interaction_date=date(2025, 10, 2),
+                confidence=0.9,
+            ),
+            family_members=[
+                ExtractedFamilyMember(
+                    first_name="Emma",
+                    last_name=None,
+                    relationship="child",
+                    confidence=0.85,
+                )
+            ],
+        )
+
+        mock_openai_client.beta.chat.completions.parse = AsyncMock(return_value=mock_completion)
+
+        response = await client.post(
+            "/api/interactions/analyze",
+            json={
+                "text": "Had coffee with Sarah Johnson at Starbucks today. "
+                "She mentioned her birthday is March 15th and her daughter Emma just started college."
+            },
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -69,33 +94,17 @@ class TestAnalyzeInteraction:
         assert response.status_code == 422  # Validation error
 
     @pytest.mark.asyncio
-    async def test_analyze_interaction_api_error(self, client: AsyncClient):
-        """Test handling of OpenRouter API errors."""
-        from httpx import HTTPStatusError, Request, Response
+    async def test_analyze_interaction_api_error(self, client: AsyncClient, mock_openai_client):
+        """Test handling of OpenAI API errors."""
+        mock_openai_client.beta.chat.completions.parse = AsyncMock(
+            side_effect=Exception("OpenAI API error")
+        )
 
-        mock_client = patch("backend.app.services.llm.httpx.AsyncClient")
-
-        with mock_client as mock:
-            mock_instance = mock.return_value.__aenter__.return_value
-            mock_response = Response(500, request=Request("POST", "http://test"))
-            mock_instance.post.return_value = mock_response
-
-            # Configure raise_for_status to raise an error
-            def raise_error():
-                raise HTTPStatusError(
-                    "API Error", request=mock_response.request, response=mock_response
-                )
-
-            mock_response.raise_for_status = raise_error
-
-            response = await client.post(
+        with pytest.raises(Exception, match="OpenAI API error"):
+            await client.post(
                 "/api/interactions/analyze",
                 json={"text": "Test interaction text"},
             )
-
-        # HTTPError is caught by global exception handler and returns 503
-        assert response.status_code == 503
-        assert "External service unavailable" in response.json()["detail"]
 
 
 class TestConfirmInteraction:

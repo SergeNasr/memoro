@@ -1,11 +1,11 @@
 """LLM service for interaction analysis using OpenAI API."""
 
-import json
 from datetime import date
 from pathlib import Path
 
-import httpx
 import structlog
+from openai import AsyncOpenAI
+from pydantic import BaseModel, Field
 
 from backend.app.config import settings
 from backend.app.models import (
@@ -17,7 +17,15 @@ from backend.app.models import (
 
 logger = structlog.get_logger(__name__)
 
-OPENAI_BASE_URL = "https://api.openai.com/v1"
+client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+
+class ExtractionResult(BaseModel):
+    """Structured extraction result for OpenAI API."""
+
+    contact: ExtractedContact
+    interaction: ExtractedInteraction
+    family_members: list[ExtractedFamilyMember] = Field(default_factory=list)
 
 
 def load_prompt(filename: str) -> str:
@@ -51,10 +59,6 @@ async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
 
     Returns:
         Analyzed interaction with extracted fields and confidence scores
-
-    Raises:
-        httpx.HTTPError: If API request fails
-        ValueError: If API response is invalid
     """
     logger.info("analyzing_interaction", text_length=len(text))
 
@@ -62,57 +66,35 @@ async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
     prompt_template = load_prompt("extract_interaction.txt")
     prompt = prompt_template.format(today=today, text=text)
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                f"{OPENAI_BASE_URL}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "gpt-4o",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.1,  # Low temperature for more consistent extraction
-                },
-                timeout=30.0,
-            )
-            response.raise_for_status()
+    completion = await client.beta.chat.completions.parse(
+        model="gpt-4o-2024-08-06",
+        messages=[{"role": "user", "content": prompt}],
+        response_format=ExtractionResult,
+        temperature=0.1,
+    )
 
-            data = response.json()
-            logger.debug("openai_response", response=data)
+    logger.debug(
+        "openai_response",
+        model=completion.model,
+        finish_reason=completion.choices[0].finish_reason,
+        prompt_tokens=completion.usage.prompt_tokens if completion.usage else None,
+        completion_tokens=completion.usage.completion_tokens if completion.usage else None,
+        total_tokens=completion.usage.total_tokens if completion.usage else None,
+    )
 
-            # Extract the content from OpenAI response
-            content = data["choices"][0]["message"]["content"]
+    extracted = completion.choices[0].message.parsed
 
-            # Parse the JSON response
-            extracted_data = json.loads(content)
+    result = AnalyzeInteractionResponse(
+        contact=extracted.contact,
+        interaction=extracted.interaction,
+        family_members=extracted.family_members,
+        raw_text=text,
+    )
 
-            # Build response model
-            result = AnalyzeInteractionResponse(
-                contact=ExtractedContact(**extracted_data["contact"]),
-                interaction=ExtractedInteraction(**extracted_data["interaction"]),
-                family_members=[
-                    ExtractedFamilyMember(**fm) for fm in extracted_data.get("family_members", [])
-                ],
-                raw_text=text,
-            )
+    logger.info(
+        "interaction_analyzed",
+        contact_name=f"{result.contact.first_name} {result.contact.last_name}",
+        family_members_count=len(result.family_members),
+    )
 
-            logger.info(
-                "interaction_analyzed",
-                contact_name=f"{result.contact.first_name} {result.contact.last_name}",
-                family_members_count=len(result.family_members),
-            )
-
-            return result
-
-        except httpx.HTTPError as e:
-            logger.error("openai_http_error", error=str(e))
-            raise
-        except (KeyError, json.JSONDecodeError, ValueError) as e:
-            logger.error(
-                "openai_parse_error",
-                error=str(e),
-                content=content if "content" in locals() else None,
-            )
-            raise ValueError(f"Failed to parse OpenAI response: {e}") from e
+    return result

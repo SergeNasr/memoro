@@ -1,6 +1,6 @@
 """Pytest configuration and fixtures."""
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 from uuid import UUID
 
 import asyncpg
@@ -30,62 +30,35 @@ def test_user_id() -> UUID:
     return UUID("00000000-0000-0000-0000-000000000001")
 
 
-@pytest.fixture
-def mock_openrouter_response():
-    """Mock OpenAI API response for interaction analysis."""
-    return {
-        "choices": [
-            {
-                "message": {
-                    "content": """{
-                        "contact": {
-                            "first_name": "Sarah",
-                            "last_name": "Johnson",
-                            "birthday": "1985-03-15",
-                            "confidence": 0.95
-                        },
-                        "interaction": {
-                            "notes": "Had coffee together, discussed daughter starting college",
-                            "location": "Starbucks",
-                            "interaction_date": "2025-10-02",
-                            "confidence": 0.9
-                        },
-                        "family_members": [
-                            {
-                                "first_name": "Emma",
-                                "last_name": "Johnson",
-                                "relationship": "child",
-                                "confidence": 0.85
-                            }
-                        ]
-                    }"""
-                }
-            }
-        ]
-    }
+def make_openai_completion(contact, interaction, family_members=None):
+    """Helper to create mock OpenAI completion response."""
+    from unittest.mock import MagicMock
+
+    mock_completion = MagicMock()
+    mock_completion.model = "gpt-4o-2024-08-06"
+    mock_completion.choices = [
+        MagicMock(
+            finish_reason="stop",
+            message=MagicMock(
+                parsed=MagicMock(
+                    contact=contact,
+                    interaction=interaction,
+                    family_members=family_members or [],
+                )
+            ),
+        )
+    ]
+    mock_completion.usage = MagicMock(prompt_tokens=100, completion_tokens=50, total_tokens=150)
+    return mock_completion
 
 
 @pytest.fixture
-def mock_openrouter_client(mock_openrouter_response):
-    """
-    Mock httpx.AsyncClient for OpenAI API calls.
+def mock_openai_client():
+    """Fixture to mock OpenAI client."""
+    from unittest.mock import patch
 
-    Usage in tests:
-        async def test_something(mock_openrouter_client):
-            with mock_openrouter_client:
-                # Your test code that calls OpenAI API
-                result = await analyze_interaction("test text")
-    """
-    mock_response = Mock()
-    mock_response.json.return_value = mock_openrouter_response
-    mock_response.raise_for_status = Mock()
-
-    mock_client = AsyncMock()
-    mock_client.post.return_value = mock_response
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.__aexit__.return_value = None
-
-    return mock_client
+    with patch("backend.app.services.llm.client") as mock_client:
+        yield mock_client
 
 
 @pytest.fixture
