@@ -6,50 +6,70 @@
 <!-- Search bar -->
 <div class="search-container">
     <input type="text" class="search-input" placeholder="Search contacts..." name="q" hx-get="/ui/search"
-        hx-trigger="keyup changed delay:300ms" hx-target="#search-results">
+        hx-trigger="keyup changed delay:300ms" hx-target="#search-results-container" hx-indicator="#search-loading">
 </div>
 
 <!-- Search results (initially hidden) -->
-<div id="search-results"></div>
+<div id="search-results-container"></div>
+
+<!-- ASCII Art Loading Component -->
+<div id="search-loading" class="search-loading htmx-indicator" style="display: none;">
+    <div class="ascii-loader">
+        <pre>
+    🔍 Searching...
+   /|\
+  / | \
+ /  |  \
+/___|___\
+    |
+    |
+    |
+        </pre>
+    </div>
+    <div class="loading-dots">
+        <span>.</span><span>.</span><span>.</span>
+    </div>
+</div>
 
 <!-- Contact list -->
 {% if contacts %}
-<ul class="contact-list">
-    {% for contact in contacts %}
-    <li class="contact-item">
-        <div>
-            <a href="/contacts/{{ contact.id }}" class="contact-name">
-                {{ contact.first_name }} {{ contact.last_name }}
-            </a>
-            {% if contact.latest_news %}
-            <div class="contact-meta">{{ contact.latest_news[:80] }}{% if contact.latest_news|length > 80 %}...{% endif
-                %}</div>
-            {% endif %}
-        </div>
-    </li>
-    {% endfor %}
-</ul>
+<div id="contacts-list-container">
+    <ul class="contact-list">
+        {% for contact in contacts %}
+        <li class="contact-item">
+            <div>
+                <a href="/contacts/{{ contact.id }}" class="contact-name">
+                    {{ contact.first_name }} {{ contact.last_name }}
+                </a>
+                {% if contact.latest_news %}
+                <div class="contact-meta">{{ contact.latest_news[:constants.CONTACT_NEWS_PREVIEW_LENGTH] }}{% if
+                    contact.latest_news|length > constants.CONTACT_NEWS_PREVIEW_LENGTH %}...{% endif %}</div>
+                {% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
 
-<!-- Pagination -->
-{% if total_pages > 1 %}
-<div class="pagination">
-    {% if page > 1 %}
-    <a href="/?page={{ page - 1 }}">prev</a>
-    {% endif %}
-
-    {% for p in range(1, total_pages + 1) %}
-    {% if p == page %}
-    <span class="current">{{ p }}</span>
-    {% else %}
-    <a href="/?page={{ p }}">{{ p }}</a>
-    {% endif %}
-    {% endfor %}
-
-    {% if page < total_pages %} <a href="/?page={{ page + 1 }}">next</a>
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="/?page={{ page - 1 }}">prev</a>
         {% endif %}
-</div>
-{% endif %}
 
+        {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span class="current">{{ p }}</span>
+        {% else %}
+        <a href="/?page={{ p }}">{{ p }}</a>
+        {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %} <a href="/?page={{ page + 1 }}">next</a>
+            {% endif %}
+    </div>
+    {% endif %}
+</div>
 {% else %}
 <div class="empty-state">
     <p>Where are your friends? 🤔</p>
@@ -59,35 +79,5 @@
 {% endblock %}
 
 {% block modals %}
-<!-- New interaction modal -->
-<div class="modal-overlay" id="new-interaction-modal" data-modal>
-    <div class="modal">
-        <div class="modal-header">
-            <h2>New Interaction</h2>
-            <button data-modal-close aria-label="Close">&times;</button>
-        </div>
-
-        <form hx-post="/ui/interactions/analyze" hx-target="#review-form">
-            <div class="form-group">
-                <label for="interaction-text">What happened?</label>
-                <textarea id="interaction-text" name="text"
-                    placeholder="e.g., Had coffee with Sarah at Starbucks. She mentioned her daughter Emma is starting college..."
-                    required></textarea>
-            </div>
-
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Analyze</button>
-            </div>
-
-            <!-- Loader shown during HTMX request -->
-            <div class="loader htmx-indicator">Processing...</div>
-        </form>
-
-        <!-- Review form will be inserted here by HTMX -->
-        <div id="review-form"></div>
-    </div>
-</div>
-
-<!-- Floating action button -->
-<button class="fab" data-modal-open="new-interaction-modal">+</button>
+{% include 'components/modal.html' %}
 {% endblock %}

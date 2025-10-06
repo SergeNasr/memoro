@@ -11,6 +11,7 @@ from backend.app.models import (
     SearchResult,
     SearchResultContact,
     SearchResultInteraction,
+    SearchType,
 )
 
 logger = structlog.get_logger(__name__)
@@ -38,12 +39,12 @@ async def perform_search(
     """
     results = []
 
-    if search_request.search_type == "semantic":
+    if search_request.search_type == SearchType.SEMANTIC:
         # Semantic search not yet implemented
         # Would require embedding service integration
         pass
 
-    elif search_request.search_type == "fuzzy":
+    elif search_request.search_type == SearchType.FUZZY:
         # Fuzzy search on contacts
         contact_rows = await conn.fetch(
             SQL_FUZZY_CONTACTS, user_id, search_request.query, search_request.limit
@@ -86,7 +87,7 @@ async def perform_search(
                 )
             )
 
-    elif search_request.search_type == "term":
+    elif search_request.search_type == SearchType.TERM:
         # Term search on contacts
         contact_rows = await conn.fetch(
             SQL_TERM_CONTACTS, user_id, search_request.query, search_request.limit

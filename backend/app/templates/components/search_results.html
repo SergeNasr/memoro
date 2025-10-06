@@ -1,0 +1,58 @@
+{% if query %}
+<div class="search-results">
+    <div class="search-header">
+        <h3>Search Results for "{{ query }}"</h3>
+        <span class="result-count">{{ total_results }} result{{ 's' if total_results != 1 else '' }}</span>
+    </div>
+
+    {% if results %}
+    <div class="results-list">
+        {% for result in results %}
+        <div class="search-result-item" data-result-type="{{ result.result_type }}">
+            {% if result.result_type == "contact" %}
+            <div class="result-contact">
+                <a href="/contacts/{{ result.contact.id }}" class="contact-link">
+                    <div class="contact-info">
+                        <h4>{{ result.contact.first_name }} {{ result.contact.last_name }}</h4>
+                        {% if result.contact.birthday %}
+                        <p class="contact-birthday">🎂 {{ result.contact.birthday.strftime('%B %d') }}</p>
+                        {% endif %}
+                        {% if result.contact.latest_news %}
+                        <p class="contact-news">{{ result.contact.latest_news[:constants.CONTACT_NEWS_DETAIL_LENGTH]
+                            }}{% if
+                            result.contact.latest_news|length > constants.CONTACT_NEWS_DETAIL_LENGTH %}...{% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="result-score">Score: {{ "%.2f"|format(result.score) }}</div>
+                </a>
+            </div>
+            {% elif result.result_type == "interaction" %}
+            <div class="result-interaction">
+                <a href="/contacts/{{ result.interaction.contact_id }}" class="interaction-link">
+                    <div class="interaction-info">
+                        <h4>{{ result.interaction.contact_first_name }} {{ result.interaction.contact_last_name }}</h4>
+                        <p class="interaction-date">{{ result.interaction.interaction_date.strftime('%B %d, %Y') }}</p>
+                        <p class="interaction-notes">{{
+                            result.interaction.notes[:constants.INTERACTION_NOTES_PREVIEW_LENGTH] }}{% if
+                            result.interaction.notes|length > constants.INTERACTION_NOTES_PREVIEW_LENGTH %}...{% endif
+                            %}</p>
+                        {% if result.interaction.location %}
+                        <p class="interaction-location">📍 {{ result.interaction.location }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="result-score">Score: {{ "%.2f"|format(result.score) }}</div>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-results">
+        <p>No results found for "{{ query }}"</p>
+        <p class="search-suggestions">Try different keywords or check your spelling.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

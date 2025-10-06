@@ -7,7 +7,8 @@
                 {{ contact.first_name }} {{ contact.last_name }}
             </a>
             {% if contact.latest_news %}
-            <div class="contact-meta">{{ contact.latest_news[:80] }}{% if contact.latest_news|length > 80 %}...{% endif %}</div>
+            <div class="contact-meta">{{ contact.latest_news[:constants.CONTACT_NEWS_PREVIEW_LENGTH] }}{% if
+                contact.latest_news|length > constants.CONTACT_NEWS_PREVIEW_LENGTH %}...{% endif %}</div>
             {% endif %}
         </div>
     </li>
@@ -18,31 +19,19 @@
 {% if total_pages > 1 %}
 <div class="pagination">
     {% if page > 1 %}
-    <a
-        hx-get="/ui/contacts/list?page={{ page - 1 }}"
-        hx-target="#contact-container"
-        hx-swap="innerHTML"
-    >prev</a>
+    <a hx-get="/ui/contacts/list?page={{ page - 1 }}" hx-target="#contacts-list-container" hx-swap="innerHTML">prev</a>
     {% endif %}
 
     {% for p in range(1, total_pages + 1) %}
-        {% if p == page %}
-        <span class="current">{{ p }}</span>
-        {% else %}
-        <a
-            hx-get="/ui/contacts/list?page={{ p }}"
-            hx-target="#contact-container"
-            hx-swap="innerHTML"
-        >{{ p }}</a>
-        {% endif %}
+    {% if p == page %}
+    <span class="current">{{ p }}</span>
+    {% else %}
+    <a hx-get="/ui/contacts/list?page={{ p }}" hx-target="#contacts-list-container" hx-swap="innerHTML">{{ p }}</a>
+    {% endif %}
     {% endfor %}
 
-    {% if page < total_pages %}
-    <a
-        hx-get="/ui/contacts/list?page={{ page + 1 }}"
-        hx-target="#contact-container"
-        hx-swap="innerHTML"
-    >next</a>
-    {% endif %}
+    {% if page < total_pages %} <a hx-get="/ui/contacts/list?page={{ page + 1 }}" hx-target="#contacts-list-container"
+        hx-swap="innerHTML">next</a>
+        {% endif %}
 </div>
 {% endif %}
