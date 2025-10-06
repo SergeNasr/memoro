@@ -89,7 +89,7 @@ async def get_contact_by_id(
 
     contact = Contact(
         id=row["id"],
-        user_id=row["user_id"],
+        user_id=user_id,
         first_name=row["first_name"],
         last_name=row["last_name"],
         birthday=row["birthday"],
@@ -137,7 +137,7 @@ async def get_contact_summary(
     recent_interactions = [
         Interaction(
             id=row["id"],
-            user_id=row["user_id"],
+            user_id=user_id,
             contact_id=row["contact_id"],
             interaction_date=row["interaction_date"],
             notes=row["notes"],
@@ -214,7 +214,7 @@ async def update_contact(
 
     contact = Contact(
         id=row["id"],
-        user_id=row["user_id"],
+        user_id=user_id,
         first_name=row["first_name"],
         last_name=row["last_name"],
         birthday=row["birthday"],
