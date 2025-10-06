@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}{{ summary.contact.first_name }} {{ summary.contact.last_name }} - Memoro{% endblock %}
+
+{% block content %}
+<div class="contact-profile">
+    <!-- Contact Header -->
+    <div class="profile-header">
+        <h2>{{ summary.contact.first_name }} {{ summary.contact.last_name }}</h2>
+        <div class="profile-meta">
+            {% if summary.contact.birthday %}
+            <div>🎂 {{ summary.contact.birthday }}</div>
+            {% endif %}
+            {% if summary.contact.latest_news %}
+            <div style="margin-top: 4px;">{{ summary.contact.latest_news }}</div>
+            {% endif %}
+            <div style="margin-top: 8px; font-size: 8pt; color: #828282;">
+                {{ summary.total_interactions }} interactions
+                {% if summary.last_interaction_date %}
+                • Last seen {{ summary.last_interaction_date.strftime('%B %d, %Y') }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Family Members -->
+    {% if summary.family_members %}
+    <div class="profile-section">
+        <h3>Family Members</h3>
+        <ul class="family-list">
+            {% for member in summary.family_members %}
+            <li class="family-item">
+                {{ member.first_name }} {{ member.last_name }}
+                <span class="family-relationship">({{ member.relationship }})</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Recent Interactions -->
+    {% if summary.recent_interactions %}
+    <div class="profile-section">
+        <h3>Recent Interactions</h3>
+        {% for interaction in summary.recent_interactions %}
+        <div class="interaction-item">
+            <div class="interaction-date">{{ interaction.interaction_date.strftime('%B %d, %Y') }}</div>
+            {% if interaction.location %}
+            <div class="interaction-location">📍 {{ interaction.location }}</div>
+            {% endif %}
+            <div class="interaction-notes">{{ interaction.notes }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block modals %}
+{% include 'components/modal.html' %}
+{% endblock %}

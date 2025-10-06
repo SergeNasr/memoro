@@ -1,0 +1,31 @@
+<!-- Reusable Modal Component -->
+<div class="modal-overlay" id="new-interaction-modal" data-modal>
+    <div class="modal">
+        <div class="modal-header">
+            <h2>New Interaction</h2>
+            <button data-modal-close aria-label="Close">&times;</button>
+        </div>
+
+        <form hx-post="/ui/interactions/analyze" hx-target="#review-form">
+            <div class="form-group">
+                <label for="interaction-text">What happened?</label>
+                <textarea id="interaction-text" name="text"
+                    placeholder="e.g., Had coffee with {{ contact_name|default('Sarah') }} at Starbucks. She mentioned..."
+                    required></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Analyze</button>
+            </div>
+
+            <!-- Loader shown during HTMX request -->
+            <div class="loader htmx-indicator">Processing...</div>
+        </form>
+
+        <!-- Review form will be inserted here by HTMX -->
+        <div id="review-form"></div>
+    </div>
+</div>
+
+<!-- Floating action button -->
+<button class="fab" data-modal-open="new-interaction-modal">+</button>
