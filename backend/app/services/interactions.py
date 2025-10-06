@@ -162,7 +162,7 @@ async def get_interaction_by_id(
 
     interaction = Interaction(
         id=row["id"],
-        user_id=row["user_id"],
+        user_id=user_id,
         contact_id=row["contact_id"],
         interaction_date=row["interaction_date"],
         notes=row["notes"],
@@ -206,7 +206,7 @@ async def update_interaction(
 
     interaction = Interaction(
         id=row["id"],
-        user_id=row["user_id"],
+        user_id=user_id,
         contact_id=row["contact_id"],
         interaction_date=row["interaction_date"],
         notes=row["notes"],
