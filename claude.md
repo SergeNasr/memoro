@@ -12,6 +12,52 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - Google OAuth login
 - Cloud-agnostic deployment (starting with Digital Ocean)
 
+## Implemented Features
+
+### ✅ Currently Available
+
+**Web UI (HTMX):**
+- 🏠 **GET /** - Homepage with contact list and search
+- 👤 **GET /contacts/{id}** - Contact profile with interactions
+- 🔍 **GET /ui/search** - Dynamic search (fuzzy/semantic/term)
+- 📄 **GET /ui/contacts/list** - Paginated contact list fragment
+
+**Search Endpoints:**
+- 🔍 **POST /api/search** - Unified search (semantic, fuzzy, term) across contacts and interactions
+
+**Interaction Endpoints:**
+- 🤖 **POST /api/interactions/analyze** - LLM-powered extraction using OpenAI structured output
+- 💾 **POST /api/interactions/confirm** - Persist analyzed interactions with automatic contact/family creation
+- 📖 **GET /api/interactions/{id}** - Retrieve a single interaction by ID
+
+**Contact Endpoints:**
+- 📋 **GET /api/contacts** - List all contacts with pagination
+- 📖 **GET /api/contacts/{id}** - Get a single contact by ID
+- 📊 **GET /api/contacts/{id}/summary** - Contact summary with recent interactions
+- ✏️ **PATCH /api/contacts/{id}** - Update contact details
+- 🗑️ **DELETE /api/contacts/{id}** - Delete a contact
+- 📜 **GET /api/contacts/{id}/interactions** - List all interactions for a contact
+
+**Infrastructure:**
+- ❤️ Health check endpoint
+- 🏗️ Database schema with PostgreSQL + pgvector + pg_trgm
+- 💉 FastAPI dependency injection for database connections
+- 🔄 Transaction-based database operations with auto-commit/rollback
+- 📁 Clean architecture with SQL files and prompt templates
+- 🛡️ Global exception handlers for clean error handling
+- 🧪 Comprehensive unit tests with dependency injection mocks
+- 📝 Structured logging with colored console output
+- 🔄 Alembic migrations for schema management
+- 🚀 CI/CD with GitHub Actions
+- 🎨 Retro-styled responsive UI with HTMX
+
+### 🚧 Coming Soon
+- ✏️ PATCH /api/interactions/{id} - Update interactions
+- 🗑️ DELETE /api/interactions/{id} - Delete interactions
+- 🔐 Google OAuth authentication (currently uses placeholder user_id)
+- 📊 AI-generated contact insights
+- 🎯 Semantic search using embeddings
+
 ## Technology Stack
 
 ### Backend
@@ -335,6 +381,33 @@ Global exception handlers eliminate repetitive try/except blocks:
 3. Fast feedback loop (< 5 seconds)
 4. No interference with development database
 
+## Testing
+
+**Test Coverage (29 tests):**
+
+*Interaction Endpoints:*
+- ✅ POST /api/interactions/analyze - Success, validation, API errors
+- ✅ POST /api/interactions/confirm - Success, family linking, validation
+- ✅ GET /api/interactions/{id} - Success, not found, invalid UUID
+
+*Contact Endpoints:*
+- ✅ GET /api/contacts - Success, empty, pagination, validation
+- ✅ GET /api/contacts/{id} - Success, not found, invalid UUID
+- ✅ PATCH /api/contacts/{id} - Success, partial update, not found, empty body
+- ✅ DELETE /api/contacts/{id} - Success, not found, invalid UUID
+- ✅ GET /api/contacts/{id}/interactions - Success, empty, not found
+
+*Infrastructure:*
+- ✅ Health check endpoint
+
+**Testing Approach:**
+- FastAPI dependency injection with automatic overrides
+- Mocked database connections and transactions
+- Mocked OpenAI API calls
+- In-memory PostgreSQL via pytest-postgresql
+- No external dependencies required
+- Aim for >80% coverage on core logic
+
 ### Code Quality
 1. `just format` - Auto-format with ruff
 2. `just lint` - Check code style
@@ -429,9 +502,8 @@ ENVIRONMENT=development  # or production
 - Include user_id and request_id in logs
 - No sensitive data in logs
 
-### Testing
+### Testing Conventions
 - Test file names: `test_*.py`
 - One test class per feature
 - Use fixtures for common setup
 - Mock external APIs (OpenAI)
-- Aim for >80% coverage on core logic
