@@ -11,10 +11,10 @@ A personal CRM for tracking daily interactions with people in your life. Record 
 ## Tech Stack
 
 - **Backend**: FastAPI + asyncpg (no ORM, raw SQL)
-- **Database**: PostgreSQL + pgvector for semantic search
-- **Frontend**: HTMX + Jinja2 + Tailwind CSS
+- **Database**: PostgreSQL + pgvector (semantic) + pg_trgm (fuzzy search)
+- **Frontend**: HTMX + Jinja2 + custom CSS (retro design)
 - **Auth**: Google OAuth 2.0
-- **AI**: OpenAI API for LLM analysis and embeddings
+- **AI**: OpenAI API (structured output) for LLM analysis and embeddings
 - **Testing**: pytest + pytest-postgresql (in-memory)
 
 ## Prerequisites
@@ -53,7 +53,8 @@ A personal CRM for tracking daily interactions with people in your life. Record 
    just dev
    ```
 
-6. **Access the API**
+6. **Access the application**
+   - Web UI: http://localhost:8000
    - API docs: http://localhost:8000/docs
    - Health check: http://localhost:8000/health
 
@@ -92,11 +93,23 @@ memoro/
 │   │   ├── main.py              # FastAPI app
 │   │   ├── db.py                # Database connection pool & helpers
 │   │   ├── exceptions.py        # Custom exceptions & handlers
+│   │   ├── constants.py         # Template/app constants
 │   │   ├── sql/                 # Raw SQL queries (by domain)
 │   │   ├── prompts/             # LLM prompt templates
 │   │   ├── routers/             # API endpoints
+│   │   │   ├── ui.py            # HTMX UI routes
+│   │   │   ├── contacts.py      # Contact API
+│   │   │   ├── interactions.py  # Interaction API
+│   │   │   └── search.py        # Search API
 │   │   ├── services/            # Business logic
-│   │   └── templates/           # Jinja2 templates
+│   │   ├── templates/           # Jinja2 templates
+│   │   │   ├── base.html        # Base template
+│   │   │   ├── index.html       # Homepage
+│   │   │   ├── contact_profile.html
+│   │   │   └── components/      # HTMX fragments
+│   │   └── static/
+│   │       ├── css/style.css    # Retro styling
+│   │       └── js/              # Client-side JS
 │   └── tests/                   # pytest tests
 ├── alembic/                     # Database migrations
 │   ├── versions/                # Migration files
@@ -123,21 +136,31 @@ ENVIRONMENT=development
 
 ### ✅ Currently Available
 
+**Web UI (HTMX):**
+- 🏠 **GET /** - Homepage with contact list and search
+- 👤 **GET /contacts/{id}** - Contact profile with interactions
+- 🔍 **GET /ui/search** - Dynamic search (fuzzy/semantic/term)
+- 📄 **GET /ui/contacts/list** - Paginated contact list fragment
+
+**Search Endpoints:**
+- 🔍 **POST /api/search** - Unified search (semantic, fuzzy, term) across contacts and interactions
+
 **Interaction Endpoints:**
-- 🤖 **POST /api/interactions/analyze** - LLM-powered extraction of contact info and interaction details from natural text
-- 💾 **POST /api/interactions/confirm** - Persist analyzed interactions to database with automatic contact creation and family linking
+- 🤖 **POST /api/interactions/analyze** - LLM-powered extraction using OpenAI structured output
+- 💾 **POST /api/interactions/confirm** - Persist analyzed interactions with automatic contact/family creation
 - 📖 **GET /api/interactions/{id}** - Retrieve a single interaction by ID
 
 **Contact Endpoints:**
 - 📋 **GET /api/contacts** - List all contacts with pagination
 - 📖 **GET /api/contacts/{id}** - Get a single contact by ID
+- 📊 **GET /api/contacts/{id}/summary** - Contact summary with recent interactions
 - ✏️ **PATCH /api/contacts/{id}** - Update contact details
 - 🗑️ **DELETE /api/contacts/{id}** - Delete a contact
 - 📜 **GET /api/contacts/{id}/interactions** - List all interactions for a contact
 
 **Infrastructure:**
 - ❤️ Health check endpoint
-- 🏗️ Database schema with PostgreSQL + pgvector support
+- 🏗️ Database schema with PostgreSQL + pgvector + pg_trgm
 - 💉 FastAPI dependency injection for database connections
 - 🔄 Transaction-based database operations with auto-commit/rollback
 - 📁 Clean architecture with SQL files and prompt templates
@@ -146,14 +169,14 @@ ENVIRONMENT=development
 - 📝 Structured logging with colored console output
 - 🔄 Alembic migrations for schema management
 - 🚀 CI/CD with GitHub Actions
+- 🎨 Retro-styled responsive UI with HTMX
 
 ### 🚧 Coming Soon
-- 🔍 Semantic search using embeddings
 - ✏️ PATCH /api/interactions/{id} - Update interactions
 - 🗑️ DELETE /api/interactions/{id} - Delete interactions
-- 📊 Contact summaries with AI-generated insights
-- 🔐 Google OAuth authentication
-- 🎨 HTMX frontend
+- 🔐 Google OAuth authentication (currently uses placeholder user_id)
+- 📊 AI-generated contact insights
+- 🎯 Semantic search using embeddings
 
 ## Database Schema
 
@@ -164,6 +187,10 @@ Tables use singular names:
 - **family_member** - Contact relationships (self-referential)
 
 All tables have timezone-aware `created_at` and `updated_at` timestamps.
+
+**Database Extensions:**
+- **pgvector** - Vector similarity search for semantic search
+- **pg_trgm** - Trigram matching for fuzzy text search
 
 ## API Documentation
 
