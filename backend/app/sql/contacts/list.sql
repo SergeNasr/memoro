@@ -9,6 +9,6 @@ SELECT
     updated_at
 FROM contact
 WHERE user_id = $1
-ORDER BY last_name ASC, first_name ASC
+ORDER BY first_name, last_name
 LIMIT $2
 OFFSET $3;
