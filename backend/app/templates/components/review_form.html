@@ -1,0 +1,140 @@
+<!-- Review Form Fragment - Shows analyzed interaction for confirmation -->
+<div class="review-container">
+    <h3>Review Extracted Information</h3>
+    <p style="font-size: 8pt; color: #828282; margin-bottom: 12px;">
+        Check the extracted information and make edits if needed.
+    </p>
+
+    <form method="post" action="/ui/interactions/confirm">
+        <!-- Contact Information -->
+        <div class="review-section">
+            <h4>Contact</h4>
+            <div class="form-group">
+                <label for="first_name">First Name</label>
+                <input type="text" id="first_name" name="contact.first_name"
+                    value="{{ analysis.contact.first_name or '' }}" required>
+            </div>
+            <div class="form-group">
+                <label for="last_name">Last Name</label>
+                <input type="text" id="last_name" name="contact.last_name"
+                    value="{{ analysis.contact.last_name or '' }}">
+            </div>
+            {% if analysis.contact.birthday %}
+            <div class="form-group">
+                <label for="birthday">Birthday</label>
+                <input type="date" id="birthday" name="contact.birthday" value="{{ analysis.contact.birthday }}">
+            </div>
+            {% endif %}
+            <div class="confidence-badge">
+                Confidence: {{ "%.0f"|format(analysis.contact.confidence * 100) }}%
+            </div>
+        </div>
+
+        <!-- Interaction Details -->
+        <div class="review-section">
+            <h4>Interaction</h4>
+            <div class="form-group">
+                <label for="interaction_date">Date</label>
+                <input type="date" id="interaction_date" name="interaction.interaction_date"
+                    value="{{ analysis.interaction.interaction_date }}" required>
+            </div>
+            <div class="form-group">
+                <label for="notes">Notes</label>
+                <textarea id="notes" name="interaction.notes" required>{{ analysis.interaction.notes }}</textarea>
+            </div>
+            {% if analysis.interaction.location %}
+            <div class="form-group">
+                <label for="location">Location</label>
+                <input type="text" id="location" name="interaction.location"
+                    value="{{ analysis.interaction.location }}">
+            </div>
+            {% endif %}
+            <div class="confidence-badge">
+                Confidence: {{ "%.0f"|format(analysis.interaction.confidence * 100) }}%
+            </div>
+        </div>
+
+        <!-- Family Members -->
+        {% if analysis.family_members %}
+        <div class="review-section">
+            <h4>Family Members ({{ analysis.family_members|length }})</h4>
+            {% for member in analysis.family_members %}
+            <div class="family-member-item">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" name="family_members[{{ loop.index0 }}].first_name"
+                        value="{{ member.first_name or '' }}">
+                    <input type="text" name="family_members[{{ loop.index0 }}].last_name"
+                        value="{{ member.last_name or '' }}" placeholder="Last name">
+                </div>
+                <div class="form-group">
+                    <label>Relationship</label>
+                    <input type="text" name="family_members[{{ loop.index0 }}].relationship"
+                        value="{{ member.relationship }}">
+                </div>
+                <div class="confidence-badge">
+                    Confidence: {{ "%.0f"|format(member.confidence * 100) }}%
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="form-actions">
+            <button type="button" data-modal-close class="btn">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Interaction</button>
+        </div>
+
+        <!-- Loader shown during HTMX request -->
+        <div class="loader htmx-indicator">Saving...</div>
+    </form>
+</div>
+
+<style>
+    .review-container {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 2px solid var(--border-color);
+    }
+
+    .review-container h3 {
+        font-size: 11pt;
+        margin-bottom: 8px;
+        color: var(--accent-color);
+    }
+
+    .review-section {
+        margin-bottom: 16px;
+        padding: 12px;
+        background-color: white;
+        border: 1px solid var(--border-color);
+    }
+
+    .review-section h4 {
+        font-size: 10pt;
+        margin-bottom: 8px;
+        color: var(--text-color);
+    }
+
+    .confidence-badge {
+        display: inline-block;
+        margin-top: 4px;
+        padding: 2px 6px;
+        font-size: 8pt;
+        color: #828282;
+        background-color: var(--hover-color);
+        border: 1px solid var(--border-color);
+    }
+
+    .family-member-item {
+        padding: 8px;
+        margin-bottom: 8px;
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+    }
+
+    .family-member-item:last-child {
+        margin-bottom: 0;
+    }
+</style>
