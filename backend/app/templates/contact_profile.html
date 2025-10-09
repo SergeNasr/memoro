@@ -30,7 +30,7 @@
         <ul class="family-list">
             {% for member in summary.family_members %}
             <li class="family-item">
-                {{ member.first_name }} {{ member.last_name }}
+                <a href="/contacts/{{ member.family_contact_id }}">{{ member.first_name }} {{ member.last_name }}</a>
                 <span class="family-relationship">({{ member.relationship }})</span>
             </li>
             {% endfor %}
