@@ -447,6 +447,16 @@ main {
     font-size: 9pt;
 }
 
+.family-item a {
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+.family-item a:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
+
 .family-relationship {
     color: #828282;
     font-size: 8pt;
