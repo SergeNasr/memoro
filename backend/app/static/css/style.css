@@ -323,30 +323,30 @@ main {
     margin-top: 16px;
 }
 
-/* ASCII Loader */
+/* Loader */
 .loader {
     display: none;
-    font-family: var(--font-mono);
-    font-size: 12pt;
     text-align: center;
     padding: 20px;
+    color: var(--accent-color);
+    font-size: 10pt;
 }
 
 .loader.htmx-request {
     display: block;
 }
 
-@keyframes spin {
-    0% { content: '|'; }
-    25% { content: '/'; }
-    50% { content: '—'; }
-    75% { content: '\\'; }
-    100% { content: '|'; }
+/* Disabled button state */
+.btn:disabled {
+    background-color: #ccc;
+    color: #666;
+    border-color: #ccc;
+    cursor: not-allowed;
 }
 
-.loader::before {
-    content: '|';
-    animation: spin 0.8s linear infinite;
+.btn:disabled:hover {
+    background-color: #ccc;
+    color: #666;
 }
 
 /* Empty state */

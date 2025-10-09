@@ -46,11 +46,26 @@ export class Modal {
 
     close(modal) {
         modal.classList.remove('active');
+
+        // Reset the new interaction modal to initial state
+        if (modal.id === 'new-interaction-modal') {
+            this.resetNewInteractionModal();
+        }
     }
 
     closeAll() {
         document.querySelectorAll('[data-modal].active').forEach(modal => {
             this.close(modal);
         });
+    }
+
+    resetNewInteractionModal() {
+        // Reset the form (clears textarea and resets button state)
+        const form = document.querySelector('#new-interaction-modal form');
+        if (form) form.reset();
+
+        // Clear the review form content
+        const reviewForm = document.getElementById('review-form');
+        if (reviewForm) reviewForm.innerHTML = '';
     }
 }

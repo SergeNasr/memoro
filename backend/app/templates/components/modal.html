@@ -6,7 +6,7 @@
             <button data-modal-close aria-label="Close">&times;</button>
         </div>
 
-        <form hx-post="/ui/interactions/analyze" hx-target="#review-form">
+        <form hx-post="/ui/interactions/analyze" hx-target="#review-form" hx-indicator="#analyze-loader">
             <div class="form-group">
                 <label for="interaction-text">What happened?</label>
                 <textarea id="interaction-text" name="text"
@@ -15,12 +15,14 @@
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Analyze</button>
+                <button type="submit" class="btn btn-primary" id="analyze-btn">Analyze</button>
             </div>
-
-            <!-- Loader shown during HTMX request -->
-            <div class="loader htmx-indicator">Processing...</div>
         </form>
+
+        <!-- Loader shown during HTMX request -->
+        <div class="loader htmx-indicator" id="analyze-loader">
+            🤖 Analyzing interaction<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+        </div>
 
         <!-- Review form will be inserted here by HTMX -->
         <div id="review-form"></div>
