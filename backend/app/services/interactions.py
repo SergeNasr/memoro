@@ -94,6 +94,20 @@ async def confirm_and_persist_interaction(
     return contact_id, interaction_id, family_count
 
 
+# Relationship inverse mapping - single source of truth
+RELATIONSHIP_INVERSES = {
+    "parent": "child",
+    "child": "parent",
+    "spouse": "spouse",
+    "sibling": "sibling",
+}
+
+
+def get_inverse_relationship(relationship: str) -> str:
+    """Get the inverse relationship for bidirectional family links."""
+    return RELATIONSHIP_INVERSES.get(relationship.lower(), "related_to")
+
+
 async def link_family_members(
     conn: asyncpg.Connection,
     user_id: UUID,
@@ -102,9 +116,10 @@ async def link_family_members(
     family_members: list[ExtractedFamilyMember],
 ) -> int:
     """
-    Link family members to a contact.
+    Link family members to a contact bidirectionally.
 
-    Creates contact records for family members if they don't exist, then creates relationships.
+    Creates contact records for family members if they don't exist, then creates
+    relationships in both directions to ensure consistent querying.
 
     Returns count of newly linked family members.
     """
@@ -124,21 +139,34 @@ async def link_family_members(
         )
         family_contact_id = family_contact_row["id"]
 
-        # Create family relationship
-        result = await conn.fetchrow(
+        # Create forward relationship (contact -> family_member)
+        forward_result = await conn.fetchrow(
             SQL_CREATE_FAMILY_MEMBER,
             contact_id,
             family_contact_id,
             family_member.relationship,
         )
 
-        if result:  # Only count if relationship was created (not duplicate)
+        # Create reverse relationship (family_member -> contact)
+        inverse_relationship = get_inverse_relationship(family_member.relationship)
+        reverse_result = await conn.fetchrow(
+            SQL_CREATE_FAMILY_MEMBER,
+            family_contact_id,
+            contact_id,
+            inverse_relationship,
+        )
+
+        # Count as linked if either relationship was created (not duplicate)
+        if forward_result or reverse_result:
             family_count += 1
             logger.info(
-                "family_member_linked",
+                "family_member_linked_bidirectionally",
                 contact_id=str(contact_id),
                 family_contact_id=str(family_contact_id),
-                relationship=family_member.relationship,
+                forward_relationship=family_member.relationship,
+                reverse_relationship=inverse_relationship,
+                forward_created=bool(forward_result),
+                reverse_created=bool(reverse_result),
             )
 
     return family_count
