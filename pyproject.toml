@@ -70,4 +70,11 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "-ra",
+    "--disable-socket",
+    "--allow-unix-socket",
+]
+
+[dependency-groups]
+dev = [
+    "pytest-socket>=0.7.0",
 ]
