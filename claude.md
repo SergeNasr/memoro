@@ -21,6 +21,12 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - 👤 **GET /contacts/{id}** - Contact profile with interactions
 - 🔍 **GET /ui/search** - Dynamic search (fuzzy/semantic/term)
 - 📄 **GET /ui/contacts/list** - Paginated contact list fragment
+- 🤖 **POST /ui/interactions/analyze** - Analyze interaction text and return review form
+- 💾 **POST /ui/interactions/confirm** - Persist interaction and redirect to contact profile
+- 📖 **GET /ui/interactions/{id}** - Get single interaction fragment (read-only view)
+- ✏️ **GET /ui/interactions/{id}/edit** - Get inline edit form for interaction
+- ✏️ **PATCH /ui/interactions/{id}** - Update interaction and return updated fragment
+- 🗑️ **DELETE /ui/interactions/{id}** - Delete interaction and return updated list
 
 **Search Endpoints:**
 - 🔍 **POST /api/search** - Unified search (semantic, fuzzy, term) across contacts and interactions
@@ -29,6 +35,8 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - 🤖 **POST /api/interactions/analyze** - LLM-powered extraction using OpenAI structured output
 - 💾 **POST /api/interactions/confirm** - Persist analyzed interactions with automatic contact/family creation
 - 📖 **GET /api/interactions/{id}** - Retrieve a single interaction by ID
+- ✏️ **PATCH /api/interactions/{id}** - Update an existing interaction
+- 🗑️ **DELETE /api/interactions/{id}** - Delete an interaction
 
 **Contact Endpoints:**
 - 📋 **GET /api/contacts** - List all contacts with pagination
@@ -52,8 +60,6 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - 🎨 Retro-styled responsive UI with HTMX
 
 ### 🚧 Coming Soon
-- ✏️ PATCH /api/interactions/{id} - Update interactions
-- 🗑️ DELETE /api/interactions/{id} - Delete interactions
 - 🔐 Google OAuth authentication (currently uses placeholder user_id)
 - 📊 AI-generated contact insights
 - 🎯 Semantic search using embeddings
@@ -76,7 +82,7 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 ### Frontend
 - **HTMX** - Dynamic interactions without heavy JavaScript
 - **Jinja2** - Server-side templating
-- **Custom CSS** - Retro-styled design (Hacker News inspired)
+- **Custom CSS** - Retro-styled design with dark/brown color scheme
 
 ### AI/Embeddings
 - **OpenAI API** - For LLM analysis (structured output via `response_format`) and text embeddings
@@ -100,6 +106,7 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - **pytest** - Testing framework
 - **pytest-asyncio** - Async test support
 - **pytest-postgresql** - In-memory PostgreSQL for fast, isolated tests
+- **pytest-socket** - Block network access during tests for isolation
 - **httpx** - HTTP client for FastAPI testing
 - No external dependencies required for tests
 
@@ -158,7 +165,9 @@ memoro/
 │   │   │   │   └── search.sql      # Vector similarity search
 │   │   │   ├── interactions/
 │   │   │   │   ├── create.sql
-│   │   │   │   ├── get_latest.sql
+│   │   │   │   ├── get_by_id.sql
+│   │   │   │   ├── update.sql
+│   │   │   │   ├── delete.sql
 │   │   │   │   └── list_by_contact.sql
 │   │   │   ├── search/
 │   │   │   │   ├── fuzzy_contacts.sql
@@ -176,10 +185,13 @@ memoro/
 │   │   │   └── components/         # HTMX fragments
 │   │   │       ├── contact_list.html
 │   │   │       ├── search_results.html
-│   │   │       └── modal.html
+│   │   │       ├── modal.html
+│   │   │       ├── interaction_edit.html # Inline edit form
+│   │   │       ├── interaction_list.html # Interaction list
+│   │   │       └── review_form.html      # LLM analysis review form
 │   │   └── static/
 │   │       ├── css/
-│   │       │   └── style.css       # Retro styling
+│   │       │   └── style.css       # Retro dark/brown styling
 │   │       └── js/
 │   │           ├── main.js
 │   │           ├── modal.js
@@ -190,7 +202,10 @@ memoro/
 │   │   ├── conftest.py             # pytest fixtures (in-memory DB)
 │   │   ├── test_contacts.py
 │   │   ├── test_interactions.py
-│   │   └── test_search.py
+│   │   ├── test_search.py
+│   │   ├── test_ui.py              # UI endpoint tests
+│   │   ├── test_network_blocking.py # Network isolation tests
+│   │   └── test_relationship_mapping.py # Family relationship tests
 │   └── Dockerfile
 ├── alembic/                        # Alembic migration files
 │   ├── versions/
@@ -318,6 +333,8 @@ Memoro implements a unified search system with three modes:
 - **Constants management**: `constants.py` centralizes UI configuration (truncation lengths, pagination)
 - **Progressive enhancement**: Full pages for initial loads, HTMX for dynamic interactions
 - **Static assets**: Custom CSS with retro styling, minimal JavaScript for modals/toasts
+- **Inline editing**: HTMX swapping for seamless edit/view transitions without page reloads
+- **Form-based UI**: UI endpoints accept form data directly, avoiding JSON parsing overhead
 
 ### Prompt Management Pattern
 LLM prompts stored as external files (like SQL):
@@ -334,6 +351,14 @@ Global exception handlers eliminate repetitive try/except blocks:
 - Endpoints remain clean without error handling code
 - Centralized logging and consistent error responses
 - Proper HTTP status codes (503 for external services, 500 for internal errors)
+
+### Service Layer Pattern
+Service functions accept primitive parameters instead of Pydantic models:
+- **Cleaner interfaces**: Functions accept individual parameters (strings, dates, dicts) directly
+- **Separation of concerns**: Pydantic models used only at API boundaries for validation
+- **Flexibility**: Service layer reusable across different input sources (JSON API, form data, CLI)
+- **Simplicity**: No model instantiation overhead in service layer
+- **Example**: `confirm_and_persist_interaction()` accepts `first_name`, `last_name`, etc. as separate parameters
 
 ## Database Schema Overview
 
@@ -383,28 +408,42 @@ Global exception handlers eliminate repetitive try/except blocks:
 
 ## Testing
 
-**Test Coverage (29 tests):**
+**Test Coverage:**
 
-*Interaction Endpoints:*
+*Interaction Endpoints (API):*
 - ✅ POST /api/interactions/analyze - Success, validation, API errors
 - ✅ POST /api/interactions/confirm - Success, family linking, validation
 - ✅ GET /api/interactions/{id} - Success, not found, invalid UUID
+- ✅ PATCH /api/interactions/{id} - Update interaction
+- ✅ DELETE /api/interactions/{id} - Delete interaction
 
-*Contact Endpoints:*
+*Contact Endpoints (API):*
 - ✅ GET /api/contacts - Success, empty, pagination, validation
 - ✅ GET /api/contacts/{id} - Success, not found, invalid UUID
 - ✅ PATCH /api/contacts/{id} - Success, partial update, not found, empty body
 - ✅ DELETE /api/contacts/{id} - Success, not found, invalid UUID
 - ✅ GET /api/contacts/{id}/interactions - Success, empty, not found
 
+*UI Endpoints:*
+- ✅ GET / - Homepage rendering
+- ✅ GET /contacts/{id} - Contact profile page
+- ✅ POST /ui/interactions/analyze - Form-based analysis
+- ✅ POST /ui/interactions/confirm - Form submission
+- ✅ GET /ui/interactions/{id}/edit - Edit form rendering
+- ✅ PATCH /ui/interactions/{id} - Inline editing
+- ✅ DELETE /ui/interactions/{id} - Delete and refresh list
+
 *Infrastructure:*
 - ✅ Health check endpoint
+- ✅ Network isolation tests (pytest-socket)
+- ✅ Relationship mapping tests
 
 **Testing Approach:**
 - FastAPI dependency injection with automatic overrides
 - Mocked database connections and transactions
 - Mocked OpenAI API calls
 - In-memory PostgreSQL via pytest-postgresql
+- **Network isolation**: pytest-socket blocks all TCP connections during tests
 - No external dependencies required
 - Aim for >80% coverage on core logic
 
@@ -478,6 +517,7 @@ ENVIRONMENT=development  # or production
 - pytest
 - pytest-asyncio
 - pytest-postgresql
+- pytest-socket
 
 ### Dev Tools
 - ruff
