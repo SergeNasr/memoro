@@ -15,7 +15,9 @@ class TestAnalyzeInteractionUI:
     """Tests for POST /ui/interactions/analyze endpoint."""
 
     @pytest.mark.asyncio
-    async def test_analyze_interaction_ui_success(self, client: AsyncClient, mock_openai_client):
+    async def test_analyze_interaction_ui_success(
+        self, client: AsyncClient, mock_openai_client, mock_db_connection
+    ):
         """Test successful interaction analysis via UI."""
         mock_completion = make_openai_completion(
             contact=ExtractedContact(
