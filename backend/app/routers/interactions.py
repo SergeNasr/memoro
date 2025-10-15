@@ -45,8 +45,7 @@ async def analyze_interaction_endpoint(
 )
 async def confirm_interaction_endpoint(
     request: ConfirmInteractionRequest,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
     conn: asyncpg.Connection = Depends(get_db_transaction_dependency),
 ) -> ConfirmInteractionResponse:
     """
@@ -60,11 +59,34 @@ async def confirm_interaction_endpoint(
 
     Returns IDs of created/found entities.
     """
+    family_members = (
+        [
+            {
+                "first_name": fm.first_name,
+                "last_name": fm.last_name,
+                "relationship": fm.relationship,
+            }
+            for fm in request.family_members
+        ]
+        if request.family_members
+        else None
+    )
+
     (
         contact_id,
         interaction_id,
         family_count,
-    ) = await interaction_service.confirm_and_persist_interaction(conn, user_id, request)
+    ) = await interaction_service.confirm_and_persist_interaction(
+        conn,
+        user_id,
+        first_name=request.contact.first_name,
+        last_name=request.contact.last_name,
+        birthday=request.contact.birthday,
+        interaction_date=request.interaction.interaction_date,
+        notes=request.interaction.notes,
+        location=request.interaction.location,
+        family_members=family_members,
+    )
 
     return ConfirmInteractionResponse(
         contact_id=contact_id,

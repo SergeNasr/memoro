@@ -11,14 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 from backend.app.constants import TemplateConstants
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
-from backend.app.models import (
-    ConfirmInteractionRequest,
-    ExtractedContact,
-    ExtractedFamilyMember,
-    ExtractedInteraction,
-    SearchRequest,
-    SearchType,
-)
+from backend.app.models import SearchType
 from backend.app.services import contacts as contact_service
 from backend.app.services import interactions as interaction_service
 from backend.app.services import search as search_service
@@ -126,7 +119,6 @@ async def search_ui(
     q: str = "",
     search_type: SearchType = SearchType.FUZZY,
     limit: int = 20,
-    # TODO: Add user authentication and get user_id from session
     user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
@@ -147,15 +139,7 @@ async def search_ui(
             },
         )
 
-    # Create search request
-    search_request = SearchRequest(
-        query=q.strip(),
-        search_type=search_type,
-        limit=limit,
-    )
-
-    # Perform search
-    results = await search_service.perform_search(conn, user_id, search_request)
+    results = await search_service.perform_search(conn, user_id, q.strip(), search_type, limit)
 
     return templates.TemplateResponse(
         request,
@@ -216,24 +200,6 @@ async def confirm_interaction_ui(
     """
     form_data = await request.form()
 
-    # Parse contact data
-    contact = ExtractedContact(
-        first_name=form_data.get("contact.first_name"),
-        last_name=form_data.get("contact.last_name") or None,
-        birthday=date.fromisoformat(form_data.get("contact.birthday"))
-        if form_data.get("contact.birthday")
-        else None,
-        confidence=1.0,
-    )
-
-    # Parse interaction data
-    interaction = ExtractedInteraction(
-        interaction_date=date.fromisoformat(form_data.get("interaction.interaction_date")),
-        notes=form_data.get("interaction.notes"),
-        location=form_data.get("interaction.location") or None,
-        confidence=1.0,
-    )
-
     # Parse family members
     family_members = []
     idx = 0
@@ -245,27 +211,29 @@ async def confirm_interaction_ui(
         first_name = form_data.get(first_name_key)
         if first_name:
             family_members.append(
-                ExtractedFamilyMember(
-                    first_name=first_name,
-                    last_name=form_data.get(f"family_members[{idx}].last_name") or None,
-                    relationship=form_data.get(f"family_members[{idx}].relationship", ""),
-                    confidence=1.0,
-                )
+                {
+                    "first_name": first_name,
+                    "last_name": form_data.get(f"family_members[{idx}].last_name") or None,
+                    "relationship": form_data.get(f"family_members[{idx}].relationship", ""),
+                }
             )
         idx += 1
-
-    # Create request and persist
-    confirm_request = ConfirmInteractionRequest(
-        contact=contact,
-        interaction=interaction,
-        family_members=family_members,
-    )
 
     (
         contact_id,
         interaction_id,
         family_count,
-    ) = await interaction_service.confirm_and_persist_interaction(conn, user_id, confirm_request)
+    ) = await interaction_service.confirm_and_persist_interaction(
+        conn,
+        user_id,
+        first_name=form_data.get("contact.first_name"),
+        last_name=form_data.get("contact.last_name") or None,
+        birthday=form_data.get("contact.birthday") or None,
+        interaction_date=form_data.get("interaction.interaction_date"),
+        notes=form_data.get("interaction.notes"),
+        location=form_data.get("interaction.location") or None,
+        family_members=family_members if family_members else None,
+    )
 
     logger.info(
         "interaction_confirmed_via_ui",
@@ -274,7 +242,6 @@ async def confirm_interaction_ui(
         family_members_linked=family_count,
     )
 
-    # Redirect to contact profile
     return RedirectResponse(url=f"/contacts/{contact_id}", status_code=303)
 
 
@@ -421,7 +388,3 @@ async def delete_interaction_ui(
             "interactions": summary.recent_interactions,
         },
     )
-
-
-# TODO: Add more UI endpoints:
-# - GET /ui/contacts/{contact_id}/interactions - Returns more interactions fragment (pagination)

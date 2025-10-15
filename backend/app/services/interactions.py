@@ -8,7 +8,6 @@ import structlog
 from backend.app.db import load_sql
 from backend.app.models import (
     AnalyzeInteractionResponse,
-    ConfirmInteractionRequest,
     ExtractedFamilyMember,
     Interaction,
 )
@@ -37,10 +36,18 @@ async def analyze_interaction_text(text: str) -> AnalyzeInteractionResponse:
 
 
 async def confirm_and_persist_interaction(
-    conn: asyncpg.Connection, user_id: UUID, request: ConfirmInteractionRequest
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    first_name: str,
+    last_name: str | None,
+    birthday: str | None,
+    interaction_date: str,
+    notes: str,
+    location: str | None,
+    family_members: list[dict[str, str]] | None = None,
 ) -> tuple[UUID, UUID, int]:
     """
-    Confirm and persist analyzed interaction data to database.
+    Confirm and persist interaction data to database.
 
     Creates/finds contact, creates interaction, links family members, updates latest news.
 
@@ -51,10 +58,10 @@ async def confirm_and_persist_interaction(
     contact_row = await conn.fetchrow(
         SQL_FIND_OR_CREATE_CONTACT,
         user_id,
-        request.contact.first_name or "Unknown",
-        request.contact.last_name or "",
-        request.contact.birthday,
-        request.interaction.notes,  # Use interaction notes as initial latest_news
+        first_name or "Unknown",
+        last_name or "",
+        birthday,
+        notes,  # Use interaction notes as initial latest_news
     )
     contact_id = contact_row["id"]
     logger.info("contact_found_or_created", contact_id=str(contact_id))
@@ -64,9 +71,9 @@ async def confirm_and_persist_interaction(
         SQL_CREATE_INTERACTION,
         user_id,
         contact_id,
-        request.interaction.interaction_date,
-        request.interaction.notes,
-        request.interaction.location,
+        interaction_date,
+        notes,
+        location,
         None,  # embedding - will be added later
     )
     interaction_id = interaction_row["id"]
@@ -76,12 +83,25 @@ async def confirm_and_persist_interaction(
     await conn.execute(
         SQL_UPDATE_LATEST_NEWS,
         contact_id,
-        request.interaction.notes,
+        notes,
     )
 
     # 4. Link family members
+    family_members_list = []
+    if family_members:
+        for fm in family_members:
+            if fm.get("first_name"):
+                family_members_list.append(
+                    ExtractedFamilyMember(
+                        first_name=fm["first_name"],
+                        last_name=fm.get("last_name"),
+                        relationship=fm.get("relationship", ""),
+                        confidence=1.0,
+                    )
+                )
+
     family_count = await link_family_members(
-        conn, user_id, contact_id, request.contact.first_name, request.family_members
+        conn, user_id, contact_id, first_name, family_members_list
     )
 
     logger.info(
