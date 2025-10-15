@@ -5,7 +5,7 @@ from uuid import UUID
 
 import asyncpg
 import structlog
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -174,20 +174,39 @@ async def search_ui(
 @router.post("/ui/interactions/analyze", response_class=HTMLResponse)
 async def analyze_interaction_ui(
     request: Request,
-    text: str = Form(...),
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
     Analyze raw interaction text and return review form HTML fragment.
     Used by HTMX from the new interaction modal.
+    If contact_id is provided, contact info will be pre-filled from database.
     """
-    analyze_request = AnalyzeInteractionRequest(text=text)
+    form_data = await request.form()
+
+    # Parse form data into request model
+    analyze_request = AnalyzeInteractionRequest(
+        text=form_data.get("text"),
+        contact_id=UUID(form_data.get("contact_id")) if form_data.get("contact_id") else None,
+    )
+
     analysis = await interaction_service.analyze_interaction_text(analyze_request.text)
+
+    # Override with provided contact if available
+    if analyze_request.contact_id:
+        contact = await contact_service.get_contact_by_id(conn, analyze_request.contact_id, user_id)
+        if contact:
+            analysis.contact.first_name = contact.first_name
+            analysis.contact.last_name = contact.last_name
+            analysis.contact.birthday = contact.birthday
+            analysis.contact.confidence = 1.0
 
     return templates.TemplateResponse(
         "components/review_form.html",
         {
             "request": request,
             "analysis": analysis,
+            "contact_id": analyze_request.contact_id,
         },
     )
 
@@ -266,7 +285,150 @@ async def confirm_interaction_ui(
     return RedirectResponse(url=f"/contacts/{contact_id}", status_code=303)
 
 
+@router.get("/ui/interactions/{interaction_id}", response_class=HTMLResponse)
+async def get_interaction_fragment(
+    request: Request,
+    interaction_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Returns a single interaction HTML fragment (read-only view).
+    Used by HTMX to cancel edit mode.
+    """
+    interaction = await interaction_service.get_interaction_by_id(conn, interaction_id, user_id)
+
+    if interaction is None:
+        return HTMLResponse(content="<div>Interaction not found</div>", status_code=404)
+
+    return templates.TemplateResponse(
+        "components/interaction_list.html",
+        {
+            "request": request,
+            "interactions": [interaction],
+        },
+    )
+
+
+@router.get("/ui/interactions/{interaction_id}/edit", response_class=HTMLResponse)
+async def get_interaction_edit_form(
+    request: Request,
+    interaction_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Returns inline edit form for an interaction.
+    Used by HTMX for in-place editing.
+    """
+    interaction = await interaction_service.get_interaction_by_id(conn, interaction_id, user_id)
+
+    if interaction is None:
+        return HTMLResponse(content="<div>Interaction not found</div>", status_code=404)
+
+    return templates.TemplateResponse(
+        "components/interaction_edit.html",
+        {
+            "request": request,
+            "interaction": interaction,
+        },
+    )
+
+
+@router.patch("/ui/interactions/{interaction_id}", response_class=HTMLResponse)
+async def update_interaction_ui(
+    request: Request,
+    interaction_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Update an interaction and return the updated HTML fragment.
+    Used by HTMX for in-place updates.
+    """
+    form_data = await request.form()
+
+    # Parse form data
+    interaction_date = date.fromisoformat(form_data.get("interaction_date"))
+    location = form_data.get("location") or None
+    notes = form_data.get("notes")
+
+    # Update interaction
+    interaction = await interaction_service.update_interaction(
+        conn,
+        interaction_id,
+        user_id,
+        notes,
+        location,
+        interaction_date,
+    )
+
+    if interaction is None:
+        return HTMLResponse(content="<div>Interaction not found</div>", status_code=404)
+
+    logger.info(
+        "interaction_updated_via_ui",
+        interaction_id=str(interaction_id),
+        user_id=str(user_id),
+    )
+
+    # Return updated interaction fragment
+    return templates.TemplateResponse(
+        "components/interaction_list.html",
+        {
+            "request": request,
+            "interactions": [interaction],
+        },
+    )
+
+
+@router.delete("/ui/interactions/{interaction_id}", response_class=HTMLResponse)
+async def delete_interaction_ui(
+    request: Request,
+    interaction_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Delete an interaction and return updated interaction list.
+    Used by HTMX to remove interaction from the list.
+    """
+    # Get interaction first to get contact_id
+    interaction = await interaction_service.get_interaction_by_id(conn, interaction_id, user_id)
+
+    if interaction is None:
+        return HTMLResponse(content="<div>Interaction not found</div>", status_code=404)
+
+    contact_id = interaction.contact_id
+
+    # Delete the interaction
+    deleted = await interaction_service.delete_interaction(conn, interaction_id, user_id)
+
+    if not deleted:
+        return HTMLResponse(content="<div>Failed to delete interaction</div>", status_code=500)
+
+    logger.info(
+        "interaction_deleted_via_ui",
+        interaction_id=str(interaction_id),
+        contact_id=str(contact_id),
+        user_id=str(user_id),
+    )
+
+    # Get updated interaction list for this contact
+    summary = await contact_service.get_contact_summary(conn, contact_id, user_id)
+
+    if summary is None:
+        return HTMLResponse(content="", status_code=200)
+
+    # Return updated interaction list
+    return templates.TemplateResponse(
+        "components/interaction_list.html",
+        {
+            "request": request,
+            "interactions": summary.recent_interactions,
+        },
+    )
+
+
 # TODO: Add more UI endpoints:
-# - GET /ui/contacts/{contact_id}/interactions - Returns more interactions fragment
-# - PATCH /ui/interactions/{interaction_id} - Inline edit form
-# - DELETE /ui/interactions/{interaction_id} - Delete and return updated list
+# - GET /ui/contacts/{contact_id}/interactions - Returns more interactions fragment (pagination)
