@@ -5,12 +5,6 @@ from uuid import uuid4
 
 import pytest
 
-from backend.app.models import (
-    ConfirmInteractionRequest,
-    ExtractedContact,
-    ExtractedFamilyMember,
-    ExtractedInteraction,
-)
 from backend.app.services.interactions import confirm_and_persist_interaction
 
 
@@ -49,23 +43,25 @@ class TestBidirectionalFamilyRelationships:
         mock_conn.execute = AsyncMock()
 
         # Create test data
-        contact = ExtractedContact(first_name="John", last_name="Doe", confidence=0.9)
-
-        family_member = ExtractedFamilyMember(
-            first_name="Jane", last_name="Doe", relationship=relationship, confidence=0.8
-        )
-
-        interaction = ExtractedInteraction(
-            notes="Had dinner with family", interaction_date="2024-01-15", confidence=0.9
-        )
-
-        request = ConfirmInteractionRequest(
-            contact=contact, interaction=interaction, family_members=[family_member]
-        )
+        family_members = [
+            {
+                "first_name": "Jane",
+                "last_name": "Doe",
+                "relationship": relationship,
+            }
+        ]
 
         # Create the interaction and relationships
         contact_id, interaction_id, family_count = await confirm_and_persist_interaction(
-            mock_conn, test_user_id, request
+            mock_conn,
+            test_user_id,
+            first_name="John",
+            last_name="Doe",
+            birthday=None,
+            interaction_date="2024-01-15",
+            notes="Had dinner with family",
+            location=None,
+            family_members=family_members,
         )
 
         # Verify one family member was linked

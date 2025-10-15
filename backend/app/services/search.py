@@ -7,7 +7,6 @@ import structlog
 
 from backend.app.db import load_sql
 from backend.app.models import (
-    SearchRequest,
     SearchResult,
     SearchResultContact,
     SearchResultInteraction,
@@ -25,7 +24,11 @@ SQL_SEMANTIC_INTERACTIONS = load_sql("search/semantic_interactions.sql")
 
 
 async def perform_search(
-    conn: asyncpg.Connection, user_id: UUID, search_request: SearchRequest
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    query: str,
+    search_type: SearchType,
+    limit: int,
 ) -> list[SearchResult]:
     """
     Perform unified search across contacts and interactions.
@@ -39,16 +42,14 @@ async def perform_search(
     """
     results = []
 
-    if search_request.search_type == SearchType.SEMANTIC:
+    if search_type == SearchType.SEMANTIC:
         # Semantic search not yet implemented
         # Would require embedding service integration
         pass
 
-    elif search_request.search_type == SearchType.FUZZY:
+    elif search_type == SearchType.FUZZY:
         # Fuzzy search on contacts
-        contact_rows = await conn.fetch(
-            SQL_FUZZY_CONTACTS, user_id, search_request.query, search_request.limit
-        )
+        contact_rows = await conn.fetch(SQL_FUZZY_CONTACTS, user_id, query, limit)
 
         for row in contact_rows:
             results.append(
@@ -66,9 +67,7 @@ async def perform_search(
             )
 
         # Fuzzy search on interactions
-        interaction_rows = await conn.fetch(
-            SQL_FUZZY_INTERACTIONS, user_id, search_request.query, search_request.limit
-        )
+        interaction_rows = await conn.fetch(SQL_FUZZY_INTERACTIONS, user_id, query, limit)
 
         for row in interaction_rows:
             results.append(
@@ -87,11 +86,9 @@ async def perform_search(
                 )
             )
 
-    elif search_request.search_type == SearchType.TERM:
+    elif search_type == SearchType.TERM:
         # Term search on contacts
-        contact_rows = await conn.fetch(
-            SQL_TERM_CONTACTS, user_id, search_request.query, search_request.limit
-        )
+        contact_rows = await conn.fetch(SQL_TERM_CONTACTS, user_id, query, limit)
 
         for row in contact_rows:
             results.append(
@@ -109,9 +106,7 @@ async def perform_search(
             )
 
         # Term search on interactions
-        interaction_rows = await conn.fetch(
-            SQL_TERM_INTERACTIONS, user_id, search_request.query, search_request.limit
-        )
+        interaction_rows = await conn.fetch(SQL_TERM_INTERACTIONS, user_id, query, limit)
 
         for row in interaction_rows:
             results.append(
@@ -132,13 +127,13 @@ async def perform_search(
 
     # Sort all results by score (descending) and limit to requested amount
     results.sort(key=lambda r: r.score, reverse=True)
-    results = results[: search_request.limit]
+    results = results[:limit]
 
     logger.info(
         "search_completed",
         user_id=str(user_id),
-        query=search_request.query,
-        search_type=search_request.search_type,
+        query=query,
+        search_type=search_type,
         total_results=len(results),
     )
 

@@ -18,8 +18,7 @@ router = APIRouter(prefix="/api/search", tags=["search"])
 @router.post("", response_model=SearchResponse, status_code=status.HTTP_200_OK)
 async def search(
     search_request: SearchRequest,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> SearchResponse:
     """
@@ -33,13 +32,14 @@ async def search(
     Returns combined results from contacts and interactions, sorted by relevance.
     """
     if search_request.search_type == "semantic":
-        # Semantic search not yet implemented
         raise HTTPException(
             status_code=501,
             detail="Semantic search not yet implemented - requires embedding service integration",
         )
 
-    results = await search_service.perform_search(conn, user_id, search_request)
+    results = await search_service.perform_search(
+        conn, user_id, search_request.query, search_request.search_type, search_request.limit
+    )
 
     return SearchResponse(
         results=results,
