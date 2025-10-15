@@ -13,6 +13,11 @@ class AnalyzeInteractionRequest(BaseModel):
     """Request model for analyzing interaction text."""
 
     text: str = Field(..., min_length=1, description="Raw interaction text to analyze")
+    contact_id: UUID | None = Field(
+        None, description="Optional contact ID for pre-filling contact info"
+    )
+
+    # Note: UI endpoints may accept form fields directly; this model is used for JSON APIs.
 
 
 class ExtractedContact(BaseModel):

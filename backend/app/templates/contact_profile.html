@@ -42,15 +42,11 @@
     {% if summary.recent_interactions %}
     <div class="profile-section">
         <h3>Recent Interactions</h3>
-        {% for interaction in summary.recent_interactions %}
-        <div class="interaction-item">
-            <div class="interaction-date">{{ interaction.interaction_date.strftime('%B %d, %Y') }}</div>
-            {% if interaction.location %}
-            <div class="interaction-location">📍 {{ interaction.location }}</div>
-            {% endif %}
-            <div class="interaction-notes">{{ interaction.notes }}</div>
+        <div id="interactions-list">
+            {% with interactions=summary.recent_interactions %}
+            {% include 'components/interaction_list.html' %}
+            {% endwith %}
         </div>
-        {% endfor %}
     </div>
     {% endif %}
 </div>

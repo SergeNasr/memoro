@@ -1,0 +1,24 @@
+<div class="interaction-item interaction-edit" id="interaction-{{ interaction.id }}">
+    <form hx-patch="/ui/interactions/{{ interaction.id }}" hx-target="#interaction-{{ interaction.id }}"
+        hx-swap="outerHTML">
+        <div class="form-group">
+            <label for="interaction_date">Date:</label>
+            <input type="date" id="interaction_date" name="interaction_date"
+                value="{{ interaction.interaction_date.isoformat() }}" required>
+        </div>
+        <div class="form-group">
+            <label for="location">Location:</label>
+            <input type="text" id="location" name="location" value="{{ interaction.location or '' }}"
+                placeholder="Optional">
+        </div>
+        <div class="form-group">
+            <label for="notes">Notes:</label>
+            <textarea id="notes" name="notes" rows="4" required>{{ interaction.notes }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save</button>
+            <button type="button" class="btn-secondary" hx-get="/ui/interactions/{{ interaction.id }}"
+                hx-target="#interaction-{{ interaction.id }}" hx-swap="outerHTML">Cancel</button>
+        </div>
+    </form>
+</div>

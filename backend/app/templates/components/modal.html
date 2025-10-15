@@ -2,15 +2,19 @@
 <div class="modal-overlay" id="new-interaction-modal" data-modal>
     <div class="modal">
         <div class="modal-header">
-            <h2>New Interaction</h2>
+            <h2>New Interaction{% if summary is defined %} with {{ summary.contact.first_name }}{% endif %}</h2>
             <button data-modal-close aria-label="Close">&times;</button>
         </div>
 
         <form hx-post="/ui/interactions/analyze" hx-target="#review-form" hx-indicator="#analyze-loader">
+            {% if summary is defined %}
+            <input type="hidden" name="contact_id" value="{{ summary.contact.id }}">
+            {% endif %}
+
             <div class="form-group">
                 <label for="interaction-text">What happened?</label>
                 <textarea id="interaction-text" name="text"
-                    placeholder="e.g., Had coffee with {{ contact_name|default('Sarah') }} at Starbucks. She mentioned..."
+                    placeholder="{% if summary is defined %}e.g., Had coffee at Starbucks. {{ summary.contact.first_name }} mentioned her new job...{% else %}e.g., Had coffee with Sarah at Starbucks. She mentioned...{% endif %}"
                     required></textarea>
             </div>
 

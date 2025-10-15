@@ -1,0 +1,17 @@
+{% for interaction in interactions %}
+<div class="interaction-item" id="interaction-{{ interaction.id }}">
+    <div class="interaction-header">
+        <div class="interaction-date">{{ interaction.interaction_date.strftime('%B %d, %Y') }}</div>
+        <div class="interaction-actions">
+            <button class="btn-icon" hx-get="/ui/interactions/{{ interaction.id }}/edit"
+                hx-target="#interaction-{{ interaction.id }}" hx-swap="outerHTML" title="Edit">[edit]</button>
+            <button class="btn-icon" hx-delete="/ui/interactions/{{ interaction.id }}" hx-target="#interactions-list"
+                hx-swap="innerHTML" hx-confirm="Delete this interaction?" title="Delete">[delete]</button>
+        </div>
+    </div>
+    {% if interaction.location %}
+    <div class="interaction-location">📍 {{ interaction.location }}</div>
+    {% endif %}
+    <div class="interaction-notes">{{ interaction.notes }}</div>
+</div>
+{% endfor %}
