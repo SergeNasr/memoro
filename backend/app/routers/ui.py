@@ -5,14 +5,13 @@ from uuid import UUID
 
 import asyncpg
 import structlog
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from backend.app.constants import TemplateConstants
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.models import (
-    AnalyzeInteractionRequest,
     ConfirmInteractionRequest,
     ExtractedContact,
     ExtractedFamilyMember,
@@ -49,9 +48,9 @@ async def homepage(
     )
 
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "contacts": contacts,
             "total": total,
             "page": page,
@@ -77,12 +76,12 @@ async def contact_profile(
 
     if summary is None:
         # Return 404 page or redirect
-        return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+        return templates.TemplateResponse(request, "404.html", status_code=404)
 
     return templates.TemplateResponse(
+        request,
         "contact_profile.html",
         {
-            "request": request,
             "summary": summary,
             "contact_name": summary.contact.first_name,
             "constants": TemplateConstants,
@@ -109,9 +108,9 @@ async def get_contact_list_fragment(
     )
 
     return templates.TemplateResponse(
+        request,
         "components/contact_list.html",
         {
-            "request": request,
             "contacts": contacts,
             "total": total,
             "page": page,
@@ -137,9 +136,9 @@ async def search_ui(
     """
     if not q.strip():
         return templates.TemplateResponse(
+            request,
             "components/search_results.html",
             {
-                "request": request,
                 "results": [],
                 "query": "",
                 "search_type": search_type,
@@ -159,9 +158,9 @@ async def search_ui(
     results = await search_service.perform_search(conn, user_id, search_request)
 
     return templates.TemplateResponse(
+        request,
         "components/search_results.html",
         {
-            "request": request,
             "results": results,
             "query": q,
             "search_type": search_type,
@@ -174,6 +173,8 @@ async def search_ui(
 @router.post("/ui/interactions/analyze", response_class=HTMLResponse)
 async def analyze_interaction_ui(
     request: Request,
+    text: str = Form(..., min_length=1),
+    contact_id: UUID | None = Form(None),
     user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
@@ -182,19 +183,11 @@ async def analyze_interaction_ui(
     Used by HTMX from the new interaction modal.
     If contact_id is provided, contact info will be pre-filled from database.
     """
-    form_data = await request.form()
-
-    # Parse form data into request model
-    analyze_request = AnalyzeInteractionRequest(
-        text=form_data.get("text"),
-        contact_id=UUID(form_data.get("contact_id")) if form_data.get("contact_id") else None,
-    )
-
-    analysis = await interaction_service.analyze_interaction_text(analyze_request.text)
+    analysis = await interaction_service.analyze_interaction_text(text)
 
     # Override with provided contact if available
-    if analyze_request.contact_id:
-        contact = await contact_service.get_contact_by_id(conn, analyze_request.contact_id, user_id)
+    if contact_id:
+        contact = await contact_service.get_contact_by_id(conn, contact_id, user_id)
         if contact:
             analysis.contact.first_name = contact.first_name
             analysis.contact.last_name = contact.last_name
@@ -202,11 +195,11 @@ async def analyze_interaction_ui(
             analysis.contact.confidence = 1.0
 
     return templates.TemplateResponse(
+        request,
         "components/review_form.html",
         {
-            "request": request,
             "analysis": analysis,
-            "contact_id": analyze_request.contact_id,
+            "contact_id": contact_id,
         },
     )
 
@@ -302,9 +295,9 @@ async def get_interaction_fragment(
         return HTMLResponse(content="<div>Interaction not found</div>", status_code=404)
 
     return templates.TemplateResponse(
+        request,
         "components/interaction_list.html",
         {
-            "request": request,
             "interactions": [interaction],
         },
     )
@@ -327,9 +320,9 @@ async def get_interaction_edit_form(
         return HTMLResponse(content="<div>Interaction not found</div>", status_code=404)
 
     return templates.TemplateResponse(
+        request,
         "components/interaction_edit.html",
         {
-            "request": request,
             "interaction": interaction,
         },
     )
@@ -374,9 +367,9 @@ async def update_interaction_ui(
 
     # Return updated interaction fragment
     return templates.TemplateResponse(
+        request,
         "components/interaction_list.html",
         {
-            "request": request,
             "interactions": [interaction],
         },
     )
@@ -422,9 +415,9 @@ async def delete_interaction_ui(
 
     # Return updated interaction list
     return templates.TemplateResponse(
+        request,
         "components/interaction_list.html",
         {
-            "request": request,
             "interactions": summary.recent_interactions,
         },
     )

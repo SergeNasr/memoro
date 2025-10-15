@@ -17,6 +17,8 @@ class AnalyzeInteractionRequest(BaseModel):
         None, description="Optional contact ID for pre-filling contact info"
     )
 
+    # Note: UI endpoints may accept form fields directly; this model is used for JSON APIs.
+
 
 class ExtractedContact(BaseModel):
     """Extracted contact information from interaction text."""
