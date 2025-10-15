@@ -1,14 +1,16 @@
 /* Memoro - Retro Personal CRM Styling */
 
 :root {
-    --bg-color: #f6f6ef;
-    --text-color: #2a2a2a;
-    --link-color: #000000;
-    --accent-color: #d2691e; /* Dark orange */
-    --border-color: #d8d8d8;
-    --hover-color: #fafaf5;
-    --modal-overlay: rgba(0, 0, 0, 0.5);
-    --input-border: #999;
+    --bg-color: #edeae3;
+    --text-color: #4a4a46;
+    --link-color: #2a2a28;
+    --accent-color: #7d786f;
+    --accent-hover: #6a6560;
+    --border-color: #d0cdc6;
+    --hover-color: #f5f3ee;
+    --modal-overlay: rgba(74, 74, 70, 0.6);
+    --input-border: #a8a6a0;
+    --meta-color: #8a8a86;
     --font-mono: 'Courier New', Courier, monospace;
     --font-sans: Verdana, Geneva, sans-serif;
 }
@@ -111,7 +113,7 @@ main {
 }
 
 .contact-meta {
-    color: #828282;
+    color: var(--meta-color);
     font-size: 8pt;
 }
 
@@ -129,7 +131,7 @@ main {
 }
 
 .profile-meta {
-    color: #828282;
+    color: var(--meta-color);
     font-size: 9pt;
 }
 
@@ -157,7 +159,7 @@ main {
 }
 
 .interaction-date {
-    color: #828282;
+    color: var(--meta-color);
     font-size: 8pt;
 }
 
@@ -189,6 +191,13 @@ main {
     background-color: var(--hover-color);
 }
 
+.btn:disabled {
+    background-color: #ccc;
+    color: #666;
+    border-color: #ccc;
+    cursor: not-allowed;
+}
+
 .btn-primary {
     background-color: var(--accent-color);
     color: white;
@@ -196,7 +205,7 @@ main {
 }
 
 .btn-primary:hover {
-    background-color: #b8581b;
+    background-color: var(--accent-hover);
 }
 
 .btn-small {
@@ -224,7 +233,7 @@ main {
 }
 
 .fab:hover {
-    background-color: #b8581b;
+    background-color: var(--accent-hover);
 }
 
 /* Modal */
@@ -336,24 +345,11 @@ main {
     display: block;
 }
 
-/* Disabled button state */
-.btn:disabled {
-    background-color: #ccc;
-    color: #666;
-    border-color: #ccc;
-    cursor: not-allowed;
-}
-
-.btn:disabled:hover {
-    background-color: #ccc;
-    color: #666;
-}
-
 /* Empty state */
 .empty-state {
     padding: 40px;
     text-align: center;
-    color: #828282;
+    color: var(--meta-color);
     font-style: italic;
 }
 
@@ -409,34 +405,6 @@ main {
     border-color: var(--accent-color);
 }
 
-/* Mobile responsive */
-@media (max-width: 768px) {
-    header h1 {
-        font-size: 11pt;
-    }
-
-    main {
-        padding: 8px;
-    }
-
-    .fab {
-        width: 48px;
-        height: 48px;
-        font-size: 24px;
-        bottom: 16px;
-        right: 16px;
-    }
-
-    .modal {
-        width: 95%;
-        padding: 12px;
-    }
-
-    .search-container {
-        padding: 6px;
-    }
-}
-
 /* Family members */
 .family-list {
     list-style: none;
@@ -458,7 +426,7 @@ main {
 }
 
 .family-relationship {
-    color: #828282;
+    color: var(--meta-color);
     font-size: 8pt;
 }
 
@@ -470,7 +438,7 @@ main {
 
 .action-btn {
     font-size: 7pt;
-    color: #828282;
+    color: var(--meta-color);
     text-decoration: none;
     padding: 2px 6px;
     border: 1px solid var(--border-color);
@@ -482,9 +450,7 @@ main {
     border-color: var(--accent-color);
 }
 
-/* Legacy search loading - removed duplicates */
-
-/* Search Results Component */
+/* Search Results */
 .search-results {
     margin-top: 1rem;
     padding: 8px;
@@ -549,29 +515,21 @@ main {
     font-size: 10pt;
 }
 
-.contact-birthday,
-.interaction-date {
+.contact-birthday {
     margin: 0.25rem 0;
-    color: #666;
+    color: var(--meta-color);
     font-size: 9pt;
 }
 
-.contact-news,
-.interaction-notes {
+.contact-news {
     margin: 0.5rem 0 0 0;
     color: var(--text-color);
     font-size: 9pt;
     line-height: 1.4;
 }
 
-.interaction-location {
-    margin: 0.25rem 0 0 0;
-    color: #666;
-    font-size: 9pt;
-}
-
 .result-score {
-    color: #666;
+    color: var(--meta-color);
     font-size: 8pt;
     font-weight: 500;
     background: var(--hover-color);
@@ -580,21 +538,16 @@ main {
     white-space: nowrap;
 }
 
-.no-results {
+.no-results,
+.search-placeholder {
     text-align: center;
     padding: 2rem;
-    color: #666;
+    color: var(--meta-color);
 }
 
 .search-suggestions {
     margin-top: 0.5rem;
     font-size: 9pt;
-}
-
-.search-placeholder {
-    text-align: center;
-    padding: 2rem;
-    color: #666;
 }
 
 /* Search Loading Animation */
@@ -640,5 +593,80 @@ main {
     }
     40% {
         transform: scale(1);
+    }
+}
+
+/* Review Form (moved from inline styles) */
+.review-container {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 2px solid var(--border-color);
+}
+
+.review-container h3 {
+    font-size: 11pt;
+    margin-bottom: 8px;
+    color: var(--accent-color);
+}
+
+.review-section {
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: white;
+    border: 1px solid var(--border-color);
+}
+
+.review-section h4 {
+    font-size: 10pt;
+    margin-bottom: 8px;
+    color: var(--text-color);
+}
+
+.confidence-badge {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 2px 6px;
+    font-size: 8pt;
+    color: var(--meta-color);
+    background-color: var(--hover-color);
+    border: 1px solid var(--border-color);
+}
+
+.family-member-item {
+    padding: 8px;
+    margin-bottom: 8px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+}
+
+.family-member-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 11pt;
+    }
+
+    main {
+        padding: 8px;
+    }
+
+    .fab {
+        width: 48px;
+        height: 48px;
+        font-size: 24px;
+        bottom: 16px;
+        right: 16px;
+    }
+
+    .modal {
+        width: 95%;
+        padding: 12px;
+    }
+
+    .search-container {
+        padding: 6px;
     }
 }
