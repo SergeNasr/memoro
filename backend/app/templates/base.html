@@ -1,13 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Memoro - Personal CRM{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script type="module">
+        import { tinykeys } from 'https://unpkg.com/tinykeys@2.1.0/dist/tinykeys.module.js';
+        window.tinykeys = tinykeys;
+    </script>
     {% block extra_head %}{% endblock %}
 </head>
+
 <body>
     <header>
         <h1><a href="/" style="text-decoration: none;">Memoro</a></h1>
@@ -25,4 +31,5 @@
     <script type="module" src="/static/js/main.js"></script>
     {% block extra_scripts %}{% endblock %}
 </body>
+
 </html>

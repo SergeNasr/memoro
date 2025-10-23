@@ -40,6 +40,11 @@ just dev
 
 Visit http://localhost:8000
 
+## Keyboard Shortcuts
+
+- `cmd+k` (or `ctrl+k`) - Focus search bar
+- `cmd+.` (or `ctrl+.`) - New interaction
+
 ## Commands
 
 ```bash
