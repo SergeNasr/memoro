@@ -703,3 +703,119 @@ class TestUpdateContactUI:
 
         assert response.status_code == 200
         assert b"Just the news updated" in response.content
+
+
+class TestGetContactDeleteModal:
+    """Tests for GET /ui/contacts/{contact_id}/delete endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_delete_modal_success(self, client: AsyncClient, mock_db_connection):
+        """Test successfully retrieving delete confirmation modal."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.side_effect = [
+            # Get contact for summary
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Sarah",
+                last_name="Johnson",
+                birthday=date(1990, 5, 15),
+                latest_news="Latest news",
+            ),
+            # Interaction count
+            mock_db_connection.make_record(total=5),
+            # Last interaction date
+            mock_db_connection.make_record(last_interaction_date=date(2024, 1, 15)),
+        ]
+
+        mock_db_connection.fetch.side_effect = [
+            # Recent interactions
+            [],
+            # Family members
+            [],
+        ]
+
+        response = await client.get(f"/ui/contacts/{contact_id}/delete")
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert b"Delete Contact" in response.content
+        assert b"Sarah Johnson" in response.content
+        assert b"5 interaction" in response.content
+        assert b"cannot be undone" in response.content
+
+    @pytest.mark.asyncio
+    async def test_get_delete_modal_no_interactions(self, client: AsyncClient, mock_db_connection):
+        """Test delete modal for contact with no interactions."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.side_effect = [
+            # Get contact for summary
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Jane",
+                last_name="Doe",
+                birthday=None,
+                latest_news=None,
+            ),
+            # Interaction count
+            mock_db_connection.make_record(total=0),
+            # Last interaction date
+            mock_db_connection.make_record(last_interaction_date=None),
+        ]
+
+        mock_db_connection.fetch.side_effect = [
+            # Recent interactions
+            [],
+            # Family members
+            [],
+        ]
+
+        response = await client.get(f"/ui/contacts/{contact_id}/delete")
+
+        assert response.status_code == 200
+        assert b"Jane Doe" in response.content
+        # Should not show interaction warning when count is 0
+        assert b"permanently delete" not in response.content
+
+    @pytest.mark.asyncio
+    async def test_get_delete_modal_not_found(self, client: AsyncClient, mock_db_connection):
+        """Test delete modal for non-existent contact."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.return_value = None
+
+        response = await client.get(f"/ui/contacts/{contact_id}/delete")
+
+        assert response.status_code == 404
+        assert b"Contact not found" in response.content
+
+
+class TestDeleteContactUI:
+    """Tests for DELETE /ui/contacts/{contact_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_delete_contact_ui_success(self, client: AsyncClient, mock_db_connection):
+        """Test successful contact deletion via UI."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(id=contact_id)
+
+        response = await client.delete(f"/ui/contacts/{contact_id}")
+
+        assert response.status_code == 200
+        assert response.headers["HX-Redirect"] == "/"
+
+    @pytest.mark.asyncio
+    async def test_delete_contact_ui_not_found(self, client: AsyncClient, mock_db_connection):
+        """Test deleting non-existent contact."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.return_value = None
+
+        response = await client.delete(f"/ui/contacts/{contact_id}")
+
+        assert response.status_code == 500
+        assert b"Failed to delete contact" in response.content
