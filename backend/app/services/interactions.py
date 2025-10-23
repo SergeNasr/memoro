@@ -1,5 +1,6 @@
 """Interaction business logic - shared between API and UI."""
 
+from datetime import date
 from uuid import UUID
 
 import asyncpg
@@ -41,7 +42,7 @@ async def confirm_and_persist_interaction(
     first_name: str,
     last_name: str | None,
     birthday: str | None,
-    interaction_date: str,
+    interaction_date: date | str,
     notes: str,
     location: str | None,
     family_members: list[dict[str, str]] | None = None,
@@ -67,11 +68,16 @@ async def confirm_and_persist_interaction(
     logger.info("contact_found_or_created", contact_id=str(contact_id))
 
     # 2. Create interaction
+    parsed_date = (
+        date.fromisoformat(interaction_date)
+        if isinstance(interaction_date, str)
+        else interaction_date
+    )
     interaction_row = await conn.fetchrow(
         SQL_CREATE_INTERACTION,
         user_id,
         contact_id,
-        interaction_date,
+        parsed_date,
         notes,
         location,
         None,  # embedding - will be added later
@@ -228,20 +234,25 @@ async def update_interaction(
     user_id: UUID,
     notes: str | None,
     location: str | None,
-    interaction_date: str | None,
+    interaction_date: date | str | None,
 ) -> Interaction | None:
     """
     Update an interaction's details.
 
     Returns None if interaction not found or doesn't belong to user.
     """
+    parsed_date = (
+        date.fromisoformat(interaction_date)
+        if isinstance(interaction_date, str)
+        else interaction_date
+    )
     row = await conn.fetchrow(
         SQL_UPDATE_INTERACTION,
         interaction_id,
         user_id,
         notes,
         location,
-        interaction_date,
+        parsed_date,
     )
 
     if row is None:

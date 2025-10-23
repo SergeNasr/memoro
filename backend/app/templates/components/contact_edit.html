@@ -1,0 +1,27 @@
+<div class="profile-header profile-edit" id="contact-header-{{ contact.id }}">
+    <form hx-patch="/ui/contacts/{{ contact.id }}" hx-target="#contact-header-{{ contact.id }}" hx-swap="outerHTML">
+        <div class="form-group">
+            <label for="first_name">First Name:</label>
+            <input type="text" id="first_name" name="first_name" value="{{ contact.first_name }}" required>
+        </div>
+        <div class="form-group">
+            <label for="last_name">Last Name:</label>
+            <input type="text" id="last_name" name="last_name" value="{{ contact.last_name }}" required>
+        </div>
+        <div class="form-group">
+            <label for="birthday">Birthday:</label>
+            <input type="date" id="birthday" name="birthday"
+                value="{{ contact.birthday.isoformat() if contact.birthday else '' }}" placeholder="Optional">
+        </div>
+        <div class="form-group">
+            <label for="latest_news">Latest News:</label>
+            <textarea id="latest_news" name="latest_news" rows="3"
+                placeholder="Optional">{{ contact.latest_news or '' }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Save</button>
+            <button type="button" class="btn-secondary" hx-get="/ui/contacts/{{ contact.id }}/header"
+                hx-target="#contact-header-{{ contact.id }}" hx-swap="outerHTML">Cancel</button>
+        </div>
+    </form>
+</div>

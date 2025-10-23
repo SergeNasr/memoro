@@ -1,0 +1,23 @@
+<div class="profile-header" id="contact-header-{{ contact.id }}">
+    <div class="profile-header-top">
+        <h2>{{ contact.first_name }} {{ contact.last_name }}</h2>
+        <button type="button" class="btn-icon" hx-get="/ui/contacts/{{ contact.id }}/edit"
+            hx-target="#contact-header-{{ contact.id }}" hx-swap="outerHTML" title="Edit">[edit]</button>
+    </div>
+    <div class="profile-meta">
+        {% if contact.birthday %}
+        <div>🎂 {{ contact.birthday }}</div>
+        {% endif %}
+        {% if contact.latest_news %}
+        <div style="margin-top: 4px;">{{ contact.latest_news }}</div>
+        {% endif %}
+        {% if total_interactions is defined %}
+        <div style="margin-top: 8px; font-size: 8pt; color: #828282;">
+            {{ total_interactions }} interactions
+            {% if last_interaction_date %}
+            • Last seen {{ last_interaction_date.strftime('%B %d, %Y') }}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
