@@ -3,6 +3,8 @@
         <h2>{{ contact.first_name }} {{ contact.last_name }}</h2>
         <button type="button" class="btn-icon" hx-get="/ui/contacts/{{ contact.id }}/edit"
             hx-target="#contact-header-{{ contact.id }}" hx-swap="outerHTML" title="Edit">[edit]</button>
+        <button type="button" class="btn-icon" hx-get="/ui/contacts/{{ contact.id }}/delete" hx-target="body"
+            hx-swap="beforeend" title="Delete">[delete]</button>
     </div>
     <div class="profile-meta">
         {% if contact.birthday %}

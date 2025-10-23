@@ -1,0 +1,30 @@
+<!-- Delete Contact Confirmation Modal -->
+<div class="modal-overlay active" id="delete-contact-modal" data-modal>
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Delete Contact</h2>
+            <button data-modal-close aria-label="Close">&times;</button>
+        </div>
+
+        <p>Are you sure you want to delete <strong>{{ contact.first_name }} {{ contact.last_name }}</strong>?</p>
+
+        {% if total_interactions > 0 %}
+        <p style="color: #ff6600; margin-top: 12px;">
+            ⚠️ This will permanently delete {{ total_interactions }} interaction{{ 's' if total_interactions != 1 else
+            '' }}.
+        </p>
+        {% endif %}
+
+        <p style="color: #828282; margin-top: 12px; font-size: 9pt;">
+            This action cannot be undone.
+        </p>
+
+        <div class="form-actions">
+            <button type="button" class="btn" data-modal-close>Cancel</button>
+            <button type="button" class="btn btn-danger" hx-delete="/ui/contacts/{{ contact.id }}"
+                style="background-color: #dc3545; color: white;">
+                Delete
+            </button>
+        </div>
+    </div>
+</div>

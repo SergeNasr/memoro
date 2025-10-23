@@ -491,3 +491,53 @@ async def update_contact_ui(
             "last_interaction_date": summary.last_interaction_date if summary else None,
         },
     )
+
+
+@router.get("/ui/contacts/{contact_id}/delete", response_class=HTMLResponse)
+async def get_delete_contact_modal(
+    request: Request,
+    contact_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Render delete confirmation modal for a contact.
+    Shows contact name and number of interactions that will be deleted.
+    """
+    summary = await contact_service.get_contact_summary(conn, contact_id, user_id)
+
+    if not summary:
+        return HTMLResponse(content="<div>Contact not found</div>", status_code=404)
+
+    return templates.TemplateResponse(
+        request,
+        "components/contact_delete_modal.html",
+        {
+            "contact": summary.contact,
+            "total_interactions": summary.total_interactions,
+        },
+    )
+
+
+@router.delete("/ui/contacts/{contact_id}", response_class=HTMLResponse)
+async def delete_contact_ui(
+    request: Request,
+    contact_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Delete a contact and redirect to home page.
+    """
+    deleted = await contact_service.delete_contact(conn, contact_id, user_id)
+
+    if not deleted:
+        return HTMLResponse(content="<div>Failed to delete contact</div>", status_code=500)
+
+    logger.info(
+        "contact_deleted_via_ui",
+        contact_id=str(contact_id),
+        user_id=str(user_id),
+    )
+
+    return HTMLResponse(content="", status_code=200, headers={"HX-Redirect": "/"})
