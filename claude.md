@@ -21,6 +21,8 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - 👤 **GET /contacts/{id}** - Contact profile with interactions
 - 🔍 **GET /ui/search** - Dynamic search (fuzzy/semantic/term)
 - 📄 **GET /ui/contacts/list** - Paginated contact list fragment
+- 🗑️ **GET /ui/contacts/{id}/delete** - Render delete confirmation modal for a contact
+- 🗑️ **DELETE /ui/contacts/{id}** - Delete contact and redirect to home page
 - 🤖 **POST /ui/interactions/analyze** - Analyze interaction text and return review form
 - 💾 **POST /ui/interactions/confirm** - Persist interaction and redirect to contact profile
 - 📖 **GET /ui/interactions/{id}** - Get single interaction fragment (read-only view)
@@ -58,6 +60,7 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - 🔄 Alembic migrations for schema management
 - 🚀 CI/CD with GitHub Actions
 - 🎨 Retro-styled responsive UI with HTMX
+- ⌨️ Keyboard shortcuts (cmd/ctrl+k for search, cmd/ctrl+. for new interaction)
 
 ### 🚧 Coming Soon
 - 🔐 Google OAuth authentication (currently uses placeholder user_id)
@@ -83,6 +86,7 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - **HTMX** - Dynamic interactions without heavy JavaScript
 - **Jinja2** - Server-side templating
 - **Custom CSS** - Retro-styled design with dark/brown color scheme
+- **tinykeys** - Lightweight keyboard shortcuts library (loaded via CDN)
 
 ### AI/Embeddings
 - **OpenAI API** - For LLM analysis (structured output via `response_format`) and text embeddings
@@ -161,6 +165,7 @@ memoro/
 │   │   │   │   ├── update_latest_news.sql
 │   │   │   │   ├── get_by_id.sql
 │   │   │   │   ├── update.sql
+│   │   │   │   ├── delete.sql
 │   │   │   │   ├── list.sql
 │   │   │   │   └── search.sql      # Vector similarity search
 │   │   │   ├── interactions/
@@ -184,6 +189,7 @@ memoro/
 │   │   │   ├── contact_profile.html # Contact detail page
 │   │   │   └── components/         # HTMX fragments
 │   │   │       ├── contact_list.html
+│   │   │       ├── contact_delete_modal.html # Delete confirmation modal
 │   │   │       ├── search_results.html
 │   │   │       ├── modal.html
 │   │   │       ├── interaction_edit.html # Inline edit form
@@ -335,6 +341,7 @@ Memoro implements a unified search system with three modes:
 - **Static assets**: Custom CSS with retro styling, minimal JavaScript for modals/toasts
 - **Inline editing**: HTMX swapping for seamless edit/view transitions without page reloads
 - **Form-based UI**: UI endpoints accept form data directly, avoiding JSON parsing overhead
+- **Keyboard shortcuts**: Using tinykeys library for cross-platform shortcuts (cmd/ctrl+k for search, cmd/ctrl+. for new interaction)
 
 ### Prompt Management Pattern
 LLM prompts stored as external files (like SQL):
@@ -427,6 +434,8 @@ Service functions accept primitive parameters instead of Pydantic models:
 *UI Endpoints:*
 - ✅ GET / - Homepage rendering
 - ✅ GET /contacts/{id} - Contact profile page
+- ✅ GET /ui/contacts/{id}/delete - Delete confirmation modal
+- ✅ DELETE /ui/contacts/{id} - Delete contact via UI
 - ✅ POST /ui/interactions/analyze - Form-based analysis
 - ✅ POST /ui/interactions/confirm - Form submission
 - ✅ GET /ui/interactions/{id}/edit - Edit form rendering
