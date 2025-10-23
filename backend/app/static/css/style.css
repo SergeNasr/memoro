@@ -125,14 +125,63 @@ main {
     margin-bottom: 16px;
 }
 
+.profile-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    gap: 12px;
+}
+
 .profile-header h2 {
     font-size: 14pt;
-    margin-bottom: 8px;
+    margin: 0;
+    flex: 1;
+}
+
+.profile-header-top .btn-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .profile-meta {
     color: var(--meta-color);
     font-size: 9pt;
+}
+
+.profile-edit {
+    background-color: var(--hover-color);
+}
+
+.profile-edit .form-group {
+    margin-bottom: 8px;
+}
+
+.profile-edit label {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 9pt;
+    color: var(--accent-color);
+}
+
+.profile-edit input,
+.profile-edit textarea {
+    width: 100%;
+    padding: 4px;
+    font-family: var(--font-sans);
+    font-size: 9pt;
+    border: 1px solid var(--input-border);
+    background-color: white;
+}
+
+.profile-edit textarea {
+    resize: vertical;
+}
+
+.profile-edit .form-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
 }
 
 .profile-section {

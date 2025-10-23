@@ -488,3 +488,218 @@ class TestConfirmInteractionUI:
 
         assert response.status_code == 303
         assert response.headers["location"] == f"/contacts/{contact_id}"
+
+
+class TestGetContactHeader:
+    """Tests for GET /ui/contacts/{contact_id}/header endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_contact_header_success(self, client: AsyncClient, mock_db_connection):
+        """Test successful contact header retrieval."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.side_effect = [
+            # Get contact
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Sarah",
+                last_name="Johnson",
+                birthday=date(1990, 5, 15),
+                latest_news="Recent update",
+            ),
+            # Interaction count
+            mock_db_connection.make_record(total=5),
+            # Last interaction date
+            mock_db_connection.make_record(last_interaction_date=date(2024, 1, 15)),
+        ]
+
+        mock_db_connection.fetch.side_effect = [
+            # Recent interactions
+            [],
+            # Family members
+            [],
+        ]
+
+        response = await client.get(f"/ui/contacts/{contact_id}/header")
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert b"Sarah" in response.content
+        assert b"Johnson" in response.content
+        assert b"[edit]" in response.content
+
+    @pytest.mark.asyncio
+    async def test_get_contact_header_not_found(self, client: AsyncClient, mock_db_connection):
+        """Test contact header for non-existent contact."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.return_value = None
+
+        response = await client.get(f"/ui/contacts/{contact_id}/header")
+
+        assert response.status_code == 404
+        assert b"Contact not found" in response.content
+
+
+class TestGetContactEditForm:
+    """Tests for GET /ui/contacts/{contact_id}/edit endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_contact_edit_form_success(self, client: AsyncClient, mock_db_connection):
+        """Test successful edit form retrieval."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(
+            id=contact_id,
+            user_id=UUID("00000000-0000-0000-0000-000000000000"),
+            first_name="Sarah",
+            last_name="Johnson",
+            birthday=date(1990, 5, 15),
+            latest_news="Recent update",
+        )
+
+        response = await client.get(f"/ui/contacts/{contact_id}/edit")
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert b"Sarah" in response.content
+        assert b"Johnson" in response.content
+        assert b"Save" in response.content
+        assert b"Cancel" in response.content
+
+    @pytest.mark.asyncio
+    async def test_get_contact_edit_form_not_found(self, client: AsyncClient, mock_db_connection):
+        """Test edit form for non-existent contact."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.return_value = None
+
+        response = await client.get(f"/ui/contacts/{contact_id}/edit")
+
+        assert response.status_code == 404
+        assert b"Contact not found" in response.content
+
+
+class TestUpdateContactUI:
+    """Tests for PATCH /ui/contacts/{contact_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_update_contact_ui_success(self, client: AsyncClient, mock_db_connection):
+        """Test successful contact update via UI."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.side_effect = [
+            # Update contact
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Sarah",
+                last_name="Smith",
+                birthday=date(1990, 5, 15),
+                latest_news="Updated news",
+            ),
+            # Get contact for summary
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Sarah",
+                last_name="Smith",
+                birthday=date(1990, 5, 15),
+                latest_news="Updated news",
+            ),
+            # Interaction count
+            mock_db_connection.make_record(total=5),
+            # Last interaction date
+            mock_db_connection.make_record(last_interaction_date=date(2024, 1, 15)),
+        ]
+
+        mock_db_connection.fetch.side_effect = [
+            # Recent interactions
+            [],
+            # Family members
+            [],
+        ]
+
+        response = await client.patch(
+            f"/ui/contacts/{contact_id}",
+            data={
+                "first_name": "Sarah",
+                "last_name": "Smith",
+                "birthday": "1990-05-15",
+                "latest_news": "Updated news",
+            },
+        )
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert b"Sarah" in response.content
+        assert b"Smith" in response.content
+
+    @pytest.mark.asyncio
+    async def test_update_contact_ui_not_found(self, client: AsyncClient, mock_db_connection):
+        """Test updating non-existent contact."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.return_value = None
+
+        response = await client.patch(
+            f"/ui/contacts/{contact_id}",
+            data={
+                "first_name": "Sarah",
+                "last_name": "Smith",
+            },
+        )
+
+        assert response.status_code == 404
+        assert b"Contact not found" in response.content
+
+    @pytest.mark.asyncio
+    async def test_update_contact_ui_partial(self, client: AsyncClient, mock_db_connection):
+        """Test partial contact update via UI."""
+        contact_id = uuid4()
+
+        mock_db_connection.fetchrow.side_effect = [
+            # Update contact
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Sarah",
+                last_name="Johnson",
+                birthday=None,
+                latest_news="Just the news updated",
+            ),
+            # Get contact for summary
+            mock_db_connection.make_record(
+                id=contact_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                first_name="Sarah",
+                last_name="Johnson",
+                birthday=None,
+                latest_news="Just the news updated",
+            ),
+            # Interaction count
+            mock_db_connection.make_record(total=3),
+            # Last interaction date
+            mock_db_connection.make_record(last_interaction_date=None),
+        ]
+
+        mock_db_connection.fetch.side_effect = [
+            # Recent interactions
+            [],
+            # Family members
+            [],
+        ]
+
+        response = await client.patch(
+            f"/ui/contacts/{contact_id}",
+            data={
+                "first_name": "Sarah",
+                "last_name": "Johnson",
+                "birthday": "",
+                "latest_news": "Just the news updated",
+            },
+        )
+
+        assert response.status_code == 200
+        assert b"Just the news updated" in response.content

@@ -388,3 +388,106 @@ async def delete_interaction_ui(
             "interactions": summary.recent_interactions,
         },
     )
+
+
+@router.get("/ui/contacts/{contact_id}/header", response_class=HTMLResponse)
+async def get_contact_header(
+    request: Request,
+    contact_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Returns contact header HTML fragment (read-only view).
+    Used by HTMX to cancel edit mode.
+    """
+    summary = await contact_service.get_contact_summary(conn, contact_id, user_id)
+
+    if summary is None:
+        return HTMLResponse(content="<div>Contact not found</div>", status_code=404)
+
+    return templates.TemplateResponse(
+        request,
+        "components/contact_header.html",
+        {
+            "contact": summary.contact,
+            "total_interactions": summary.total_interactions,
+            "last_interaction_date": summary.last_interaction_date,
+        },
+    )
+
+
+@router.get("/ui/contacts/{contact_id}/edit", response_class=HTMLResponse)
+async def get_contact_edit_form(
+    request: Request,
+    contact_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Returns inline edit form for a contact.
+    Used by HTMX for in-place editing.
+    """
+    contact = await contact_service.get_contact_by_id(conn, contact_id, user_id)
+
+    if contact is None:
+        return HTMLResponse(content="<div>Contact not found</div>", status_code=404)
+
+    return templates.TemplateResponse(
+        request,
+        "components/contact_edit.html",
+        {
+            "contact": contact,
+        },
+    )
+
+
+@router.patch("/ui/contacts/{contact_id}", response_class=HTMLResponse)
+async def update_contact_ui(
+    request: Request,
+    contact_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Update a contact and return the updated HTML fragment.
+    Used by HTMX for in-place updates.
+    """
+    form_data = await request.form()
+
+    first_name = form_data.get("first_name") or None
+    last_name = form_data.get("last_name") or None
+    birthday_str = form_data.get("birthday")
+    birthday = birthday_str if birthday_str else None
+    latest_news = form_data.get("latest_news") or None
+
+    contact = await contact_service.update_contact(
+        conn,
+        contact_id,
+        user_id,
+        first_name,
+        last_name,
+        birthday,
+        latest_news,
+    )
+
+    if contact is None:
+        return HTMLResponse(content="<div>Contact not found</div>", status_code=404)
+
+    logger.info(
+        "contact_updated_via_ui",
+        contact_id=str(contact_id),
+        user_id=str(user_id),
+    )
+
+    summary = await contact_service.get_contact_summary(conn, contact_id, user_id)
+
+    return templates.TemplateResponse(
+        request,
+        "components/contact_header.html",
+        {
+            "contact": contact,
+            "total_interactions": summary.total_interactions if summary else 0,
+            "last_interaction_date": summary.last_interaction_date if summary else None,
+        },
+    )
