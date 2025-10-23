@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     searchInput.select();
                 }
             },
-            '$mod+i': (e) => {
+            '$mod+.': (e) => {
                 e.preventDefault();
                 modal.open('new-interaction-modal');
             }
