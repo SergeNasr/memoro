@@ -98,3 +98,31 @@ async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
     )
 
     return result
+
+
+async def generate_embedding(text: str) -> list[float]:
+    """
+    Generate embedding vector for text using OpenAI API.
+
+    Args:
+        text: Text to generate embedding for
+
+    Returns:
+        Embedding vector as list of floats
+    """
+    logger.info("generating_embedding", text_length=len(text))
+
+    response = await client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text,
+    )
+
+    embedding = response.data[0].embedding
+
+    logger.debug(
+        "embedding_generated",
+        embedding_dimensions=len(embedding),
+        total_tokens=response.usage.total_tokens if response.usage else None,
+    )
+
+    return embedding
