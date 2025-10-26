@@ -452,6 +452,154 @@ class TestDeleteInteraction:
         assert response.status_code == 422  # Validation error
 
 
+class TestInteractionEmbeddings:
+    """Tests for automatic embedding generation on interactions."""
+
+    @pytest.mark.asyncio
+    async def test_confirm_interaction_generates_embedding(
+        self, client: AsyncClient, mock_db_transaction, mock_openai_client
+    ):
+        """Test that confirming an interaction generates an embedding."""
+        contact_id = uuid4()
+        interaction_id = uuid4()
+        mock_embedding = [0.1] * 1536
+
+        # Mock embedding generation
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=mock_embedding)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
+
+        # Mock database responses
+        def mock_fetchrow_side_effect(*args, **kwargs):
+            if "interaction" in str(args[0]).lower() and "INSERT" in str(args[0]):
+                # Verify embedding was passed
+                assert args[6] == mock_embedding  # 7th parameter is embedding
+                return mock_db_transaction.make_record(
+                    id=interaction_id,
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    contact_id=contact_id,
+                    interaction_date=date(2025, 10, 2),
+                    notes="Test interaction notes",
+                    location="Test location",
+                    created_at=None,
+                    updated_at=None,
+                )
+            else:
+                return mock_db_transaction.make_record(
+                    id=contact_id,
+                    first_name="Test",
+                    last_name="User",
+                    birthday=None,
+                    latest_news="Test interaction notes",
+                    user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                )
+
+        mock_db_transaction.fetchrow.side_effect = mock_fetchrow_side_effect
+
+        response = await client.post(
+            "/api/interactions/confirm",
+            json={
+                "contact": {
+                    "first_name": "Test",
+                    "last_name": "User",
+                    "birthday": None,
+                    "confidence": 0.9,
+                },
+                "interaction": {
+                    "notes": "Test interaction notes",
+                    "location": "Test location",
+                    "interaction_date": "2025-10-02",
+                    "confidence": 0.9,
+                },
+                "family_members": [],
+            },
+        )
+
+        assert response.status_code == 201
+        # Verify embedding generation was called
+        mock_openai_client.embeddings.create.assert_called_once_with(
+            model="text-embedding-3-small",
+            input="Test interaction notes",
+        )
+
+    @pytest.mark.asyncio
+    async def test_update_interaction_regenerates_embedding_when_notes_change(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
+        """Test that updating notes regenerates the embedding."""
+        interaction_id = uuid4()
+        contact_id = uuid4()
+        mock_embedding = [0.2] * 1536
+
+        # Mock embedding generation
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=mock_embedding)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
+
+        # Mock database response
+        def mock_fetchrow(*args, **kwargs):
+            # Verify new embedding was passed
+            if len(args) > 6:
+                assert args[6] == mock_embedding
+            return mock_db_connection.make_record(
+                id=interaction_id,
+                user_id=UUID("00000000-0000-0000-0000-000000000000"),
+                contact_id=contact_id,
+                interaction_date=date(2024, 1, 15),
+                notes="Updated interaction notes",
+                location="Test location",
+            )
+
+        mock_db_connection.fetchrow.side_effect = mock_fetchrow
+
+        response = await client.patch(
+            f"/api/interactions/{interaction_id}",
+            json={
+                "notes": "Updated interaction notes",
+            },
+        )
+
+        assert response.status_code == 200
+        # Verify embedding was regenerated
+        mock_openai_client.embeddings.create.assert_called_once_with(
+            model="text-embedding-3-small",
+            input="Updated interaction notes",
+        )
+
+    @pytest.mark.asyncio
+    async def test_update_interaction_no_embedding_when_notes_unchanged(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
+        """Test that updating without notes doesn't generate embedding."""
+        interaction_id = uuid4()
+        contact_id = uuid4()
+
+        mock_openai_client.embeddings.create = AsyncMock()
+
+        # Mock database response
+        mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(
+            id=interaction_id,
+            user_id=UUID("00000000-0000-0000-0000-000000000000"),
+            contact_id=contact_id,
+            interaction_date=date(2024, 1, 15),
+            notes="Original notes",
+            location="New location",
+        )
+
+        response = await client.patch(
+            f"/api/interactions/{interaction_id}",
+            json={
+                "location": "New location",
+            },
+        )
+
+        assert response.status_code == 200
+        # Verify embedding generation was NOT called
+        mock_openai_client.embeddings.create.assert_not_called()
+
+
 class TestHealthCheck:
     """Tests for health check endpoint."""
 
