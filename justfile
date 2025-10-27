@@ -135,3 +135,11 @@ info:
     @echo "Run 'just install' to install dependencies"
     @echo "Run 'just dev' to start development server"
     @echo "Run 'just test' to run tests"
+
+# Backfill embeddings for interactions (max 20, requires confirmation)
+backfill-embeddings:
+    @echo "⚠️  This will generate embeddings using OpenAI API (costs money)"
+    @echo "   Run the script directly for interactive mode:"
+    @echo "   uv run python scripts/backfill_embeddings.py"
+    @echo ""
+    @read -p "Press Enter to continue or Ctrl-C to cancel..." && uv run python scripts/backfill_embeddings.py
