@@ -1,6 +1,7 @@
 """Contact business logic - shared between API and UI."""
 
 import math
+from datetime import date
 from uuid import UUID
 
 import asyncpg
@@ -188,7 +189,7 @@ async def update_contact(
     user_id: UUID,
     first_name: str | None,
     last_name: str | None,
-    birthday: str | None,
+    birthday: date | None,
     latest_news: str | None,
 ) -> Contact | None:
     """
