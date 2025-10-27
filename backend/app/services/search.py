@@ -48,6 +48,56 @@ def _add_or_update_score(
     interaction_scores[interaction_id][score_key] = float(row["score"])
 
 
+def _build_contact_result(row: dict) -> SearchResult:
+    """Build SearchResult for a contact row."""
+    return SearchResult(
+        result_type="contact",
+        contact=SearchResultContact(
+            id=row["id"],
+            first_name=row["first_name"],
+            last_name=row["last_name"],
+            birthday=row["birthday"],
+            latest_news=row["latest_news"],
+        ),
+        score=float(row["score"]),
+    )
+
+
+def _build_interaction_result(row: dict) -> SearchResult:
+    """Build SearchResult for an interaction row."""
+    return SearchResult(
+        result_type="interaction",
+        interaction=SearchResultInteraction(
+            id=row["id"],
+            contact_id=row["contact_id"],
+            interaction_date=row["interaction_date"],
+            notes=row["notes"],
+            location=row["location"],
+            contact_first_name=row["contact_first_name"],
+            contact_last_name=row["contact_last_name"],
+        ),
+        score=float(row["score"]),
+    )
+
+
+async def _search_contacts_and_interactions(
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    query: str,
+    limit: int,
+    contact_sql: str,
+    interaction_sql: str,
+) -> list[SearchResult]:
+    """Execute contact and interaction searches and return combined results."""
+    contact_rows = await conn.fetch(contact_sql, user_id, query, limit)
+    interaction_rows = await conn.fetch(interaction_sql, user_id, query, limit)
+
+    results = [_build_contact_result(row) for row in contact_rows]
+    results.extend(_build_interaction_result(row) for row in interaction_rows)
+
+    return results
+
+
 async def perform_search(
     conn: asyncpg.Connection,
     user_id: UUID,
@@ -59,107 +109,29 @@ async def perform_search(
     Perform unified search across contacts and interactions.
 
     Supports three search types:
-    - semantic: Vector similarity search on interaction embeddings
     - fuzzy: Trigram similarity matching on text fields
     - term: Basic ILIKE pattern matching
+    - hybrid: Weighted combination of fuzzy, term, and semantic searches
 
     Returns combined results sorted by relevance score.
     """
-    results = []
+    search_handlers = {
+        SearchType.FUZZY: lambda: _search_contacts_and_interactions(
+            conn, user_id, query, limit, SQL_FUZZY_CONTACTS, SQL_FUZZY_INTERACTIONS
+        ),
+        SearchType.TERM: lambda: _search_contacts_and_interactions(
+            conn, user_id, query, limit, SQL_TERM_CONTACTS, SQL_TERM_INTERACTIONS
+        ),
+        SearchType.HYBRID: lambda: perform_hybrid_search(conn, user_id, query, limit),
+    }
 
-    if search_type == SearchType.SEMANTIC:
-        # Semantic search not yet implemented
-        # Would require embedding service integration
-        pass
-
-    elif search_type == SearchType.FUZZY:
-        # Fuzzy search on contacts
-        contact_rows = await conn.fetch(SQL_FUZZY_CONTACTS, user_id, query, limit)
-
-        for row in contact_rows:
-            results.append(
-                SearchResult(
-                    result_type="contact",
-                    contact=SearchResultContact(
-                        id=row["id"],
-                        first_name=row["first_name"],
-                        last_name=row["last_name"],
-                        birthday=row["birthday"],
-                        latest_news=row["latest_news"],
-                    ),
-                    score=float(row["score"]),
-                )
-            )
-
-        # Fuzzy search on interactions
-        interaction_rows = await conn.fetch(SQL_FUZZY_INTERACTIONS, user_id, query, limit)
-
-        for row in interaction_rows:
-            results.append(
-                SearchResult(
-                    result_type="interaction",
-                    interaction=SearchResultInteraction(
-                        id=row["id"],
-                        contact_id=row["contact_id"],
-                        interaction_date=row["interaction_date"],
-                        notes=row["notes"],
-                        location=row["location"],
-                        contact_first_name=row["contact_first_name"],
-                        contact_last_name=row["contact_last_name"],
-                    ),
-                    score=float(row["score"]),
-                )
-            )
-
-    elif search_type == SearchType.TERM:
-        # Term search on contacts
-        contact_rows = await conn.fetch(SQL_TERM_CONTACTS, user_id, query, limit)
-
-        for row in contact_rows:
-            results.append(
-                SearchResult(
-                    result_type="contact",
-                    contact=SearchResultContact(
-                        id=row["id"],
-                        first_name=row["first_name"],
-                        last_name=row["last_name"],
-                        birthday=row["birthday"],
-                        latest_news=row["latest_news"],
-                    ),
-                    score=float(row["score"]),
-                )
-            )
-
-        # Term search on interactions
-        interaction_rows = await conn.fetch(SQL_TERM_INTERACTIONS, user_id, query, limit)
-
-        for row in interaction_rows:
-            results.append(
-                SearchResult(
-                    result_type="interaction",
-                    interaction=SearchResultInteraction(
-                        id=row["id"],
-                        contact_id=row["contact_id"],
-                        interaction_date=row["interaction_date"],
-                        notes=row["notes"],
-                        location=row["location"],
-                        contact_first_name=row["contact_first_name"],
-                        contact_last_name=row["contact_last_name"],
-                    ),
-                    score=float(row["score"]),
-                )
-            )
-
-    elif search_type == SearchType.HYBRID:
-        # Delegate to hybrid search function
-        return await perform_hybrid_search(conn, user_id, query, limit)
-
-    else:
-        # Unknown search type
+    handler = search_handlers.get(search_type)
+    if not handler:
         logger.error("unknown_search_type", search_type=search_type)
         raise ValueError(f"Unknown search type: {search_type}")
 
-    # Sort all results by score (descending) and limit to requested amount
+    results = await handler()
+
     results.sort(key=lambda r: r.score, reverse=True)
     results = results[:limit]
 
