@@ -1,6 +1,5 @@
 """Search business logic - shared between API and UI."""
 
-import asyncio
 from uuid import UUID
 
 import asyncpg
@@ -127,6 +126,15 @@ async def perform_search(
                 )
             )
 
+    elif search_type == SearchType.HYBRID:
+        # Delegate to hybrid search function
+        return await perform_hybrid_search(conn, user_id, query, limit)
+
+    else:
+        # Unknown search type
+        logger.error("unknown_search_type", search_type=search_type)
+        raise ValueError(f"Unknown search type: {search_type}")
+
     # Sort all results by score (descending) and limit to requested amount
     results.sort(key=lambda r: r.score, reverse=True)
     results = results[:limit]
@@ -151,7 +159,7 @@ async def perform_hybrid_search(
     """
     Perform hybrid search combining fuzzy, term, and semantic searches on interactions.
 
-    Runs all three search types in parallel and merges results with weighted scoring:
+    Runs all three search types and merges results with weighted scoring:
     - Semantic: 50%
     - Fuzzy: 30%
     - Term: 20%
@@ -162,12 +170,10 @@ async def perform_hybrid_search(
     query_embedding = await generate_embedding(query)
     embedding_str = f"[{','.join(map(str, query_embedding))}]"
 
-    # Run all three searches in parallel
-    fuzzy_rows, term_rows, semantic_rows = await asyncio.gather(
-        conn.fetch(SQL_FUZZY_INTERACTIONS, user_id, query, limit),
-        conn.fetch(SQL_TERM_INTERACTIONS, user_id, query, limit),
-        conn.fetch(SQL_SEMANTIC_INTERACTIONS, user_id, embedding_str, limit),
-    )
+    # Run all three searches sequentially (asyncpg doesn't support concurrent ops on same conn)
+    fuzzy_rows = await conn.fetch(SQL_FUZZY_INTERACTIONS, user_id, query, limit)
+    term_rows = await conn.fetch(SQL_TERM_INTERACTIONS, user_id, query, limit)
+    semantic_rows = await conn.fetch(SQL_SEMANTIC_INTERACTIONS, user_id, embedding_str, limit)
 
     # Weight configuration
     SEMANTIC_WEIGHT = 0.5
