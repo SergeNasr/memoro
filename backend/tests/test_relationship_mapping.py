@@ -21,7 +21,7 @@ class TestBidirectionalFamilyRelationships:
         ],
     )
     async def test_family_relationship_creates_bidirectional_links(
-        self, test_user_id, relationship, expected_inverse
+        self, test_user_id, relationship, expected_inverse, mock_openai_client
     ):
         """Test that creating a family relationship creates both forward and reverse links."""
         # Set up mock database connection that tracks insertions

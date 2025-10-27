@@ -58,6 +58,12 @@ def mock_openai_client():
     from unittest.mock import patch
 
     with patch("backend.app.services.llm.client") as mock_client:
+        # Setup default async mock for embeddings.create()
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=[0.1] * 1536)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
+
         yield mock_client
 
 

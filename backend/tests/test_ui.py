@@ -198,7 +198,9 @@ class TestUpdateInteractionUI:
     """Tests for PATCH /ui/interactions/{interaction_id} endpoint."""
 
     @pytest.mark.asyncio
-    async def test_update_interaction_ui_success(self, client: AsyncClient, mock_db_connection):
+    async def test_update_interaction_ui_success(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
         """Test successful interaction update via UI."""
         interaction_id = uuid4()
         contact_id = uuid4()
@@ -228,7 +230,9 @@ class TestUpdateInteractionUI:
         assert b"New Location" in response.content
 
     @pytest.mark.asyncio
-    async def test_update_interaction_ui_not_found(self, client: AsyncClient, mock_db_connection):
+    async def test_update_interaction_ui_not_found(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
         """Test updating non-existent interaction."""
         interaction_id = uuid4()
 
@@ -247,7 +251,9 @@ class TestUpdateInteractionUI:
         assert b"Interaction not found" in response.content
 
     @pytest.mark.asyncio
-    async def test_update_interaction_ui_partial(self, client: AsyncClient, mock_db_connection):
+    async def test_update_interaction_ui_partial(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
         """Test partial update via UI."""
         interaction_id = uuid4()
         contact_id = uuid4()
@@ -382,7 +388,9 @@ class TestConfirmInteractionUI:
     """Tests for POST /ui/interactions/confirm endpoint."""
 
     @pytest.mark.asyncio
-    async def test_confirm_interaction_ui_success(self, client: AsyncClient, mock_db_transaction):
+    async def test_confirm_interaction_ui_success(
+        self, client: AsyncClient, mock_db_transaction, mock_openai_client
+    ):
         """Test successful confirmation and redirect via UI."""
         contact_id = uuid4()
         interaction_id = uuid4()
@@ -430,7 +438,7 @@ class TestConfirmInteractionUI:
 
     @pytest.mark.asyncio
     async def test_confirm_interaction_ui_with_family(
-        self, client: AsyncClient, mock_db_transaction
+        self, client: AsyncClient, mock_db_transaction, mock_openai_client
     ):
         """Test confirmation with family members via UI."""
         contact_id = uuid4()

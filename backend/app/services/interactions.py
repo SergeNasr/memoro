@@ -12,7 +12,12 @@ from backend.app.models import (
     ExtractedFamilyMember,
     Interaction,
 )
-from backend.app.services.llm import analyze_interaction as llm_analyze_interaction
+from backend.app.services.llm import (
+    analyze_interaction as llm_analyze_interaction,
+)
+from backend.app.services.llm import (
+    generate_embedding,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -67,12 +72,18 @@ async def confirm_and_persist_interaction(
     contact_id = contact_row["id"]
     logger.info("contact_found_or_created", contact_id=str(contact_id))
 
-    # 2. Create interaction
+    # 2. Generate embedding from notes
+    embedding = await generate_embedding(notes)
+    logger.info("embedding_generated_for_interaction", embedding_dimensions=len(embedding))
+
+    # 3. Create interaction
     parsed_date = (
         date.fromisoformat(interaction_date)
         if isinstance(interaction_date, str)
         else interaction_date
     )
+    # Convert embedding list to pgvector string format
+    embedding_str = f"[{','.join(map(str, embedding))}]"
     interaction_row = await conn.fetchrow(
         SQL_CREATE_INTERACTION,
         user_id,
@@ -80,19 +91,19 @@ async def confirm_and_persist_interaction(
         parsed_date,
         notes,
         location,
-        None,  # embedding - will be added later
+        embedding_str,
     )
     interaction_id = interaction_row["id"]
     logger.info("interaction_created", interaction_id=str(interaction_id))
 
-    # 3. Update contact's latest_news with this interaction
+    # 4. Update contact's latest_news with this interaction
     await conn.execute(
         SQL_UPDATE_LATEST_NEWS,
         contact_id,
         notes,
     )
 
-    # 4. Link family members
+    # 5. Link family members
     family_members_list = []
     if family_members:
         for fm in family_members:
@@ -241,6 +252,18 @@ async def update_interaction(
 
     Returns None if interaction not found or doesn't belong to user.
     """
+    # Generate new embedding if notes are being updated
+    embedding_str = None
+    if notes is not None:
+        embedding = await generate_embedding(notes)
+        logger.info(
+            "embedding_regenerated_for_update",
+            interaction_id=str(interaction_id),
+            embedding_dimensions=len(embedding),
+        )
+        # Convert embedding list to pgvector string format
+        embedding_str = f"[{','.join(map(str, embedding))}]"
+
     parsed_date = (
         date.fromisoformat(interaction_date)
         if isinstance(interaction_date, str)
@@ -253,6 +276,7 @@ async def update_interaction(
         notes,
         location,
         parsed_date,
+        embedding_str,
     )
 
     if row is None:

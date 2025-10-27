@@ -117,7 +117,7 @@ async def get_contact_list_fragment(
 async def search_ui(
     request: Request,
     q: str = "",
-    search_type: SearchType = SearchType.FUZZY,
+    search_type: SearchType = SearchType.HYBRID,
     limit: int = 20,
     user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
     conn: asyncpg.Connection = Depends(get_db_dependency),
