@@ -1,5 +1,6 @@
 """Search business logic - shared between API and UI."""
 
+import asyncio
 from uuid import UUID
 
 import asyncpg
@@ -12,6 +13,7 @@ from backend.app.models import (
     SearchResultInteraction,
     SearchType,
 )
+from backend.app.services.llm import generate_embedding
 
 logger = structlog.get_logger(__name__)
 
@@ -135,6 +137,118 @@ async def perform_search(
         query=query,
         search_type=search_type,
         total_results=len(results),
+    )
+
+    return results
+
+
+async def perform_hybrid_search(
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    query: str,
+    limit: int,
+) -> list[SearchResult]:
+    """
+    Perform hybrid search combining fuzzy, term, and semantic searches on interactions.
+
+    Runs all three search types in parallel and merges results with weighted scoring:
+    - Semantic: 50%
+    - Fuzzy: 30%
+    - Term: 20%
+
+    Returns combined results sorted by weighted relevance score.
+    """
+    # Generate embedding for semantic search
+    query_embedding = await generate_embedding(query)
+    embedding_str = f"[{','.join(map(str, query_embedding))}]"
+
+    # Run all three searches in parallel
+    fuzzy_rows, term_rows, semantic_rows = await asyncio.gather(
+        conn.fetch(SQL_FUZZY_INTERACTIONS, user_id, query, limit),
+        conn.fetch(SQL_TERM_INTERACTIONS, user_id, query, limit),
+        conn.fetch(SQL_SEMANTIC_INTERACTIONS, user_id, embedding_str, limit),
+    )
+
+    # Weight configuration
+    SEMANTIC_WEIGHT = 0.5
+    FUZZY_WEIGHT = 0.3
+    TERM_WEIGHT = 0.2
+
+    # Collect scores by interaction ID
+    interaction_scores: dict[UUID, dict] = {}
+
+    # Process fuzzy results
+    for row in fuzzy_rows:
+        interaction_id = row["id"]
+        if interaction_id not in interaction_scores:
+            interaction_scores[interaction_id] = {
+                "row": row,
+                "fuzzy": 0.0,
+                "term": 0.0,
+                "semantic": 0.0,
+            }
+        interaction_scores[interaction_id]["fuzzy"] = float(row["score"])
+
+    # Process term results
+    for row in term_rows:
+        interaction_id = row["id"]
+        if interaction_id not in interaction_scores:
+            interaction_scores[interaction_id] = {
+                "row": row,
+                "fuzzy": 0.0,
+                "term": 0.0,
+                "semantic": 0.0,
+            }
+        interaction_scores[interaction_id]["term"] = float(row["score"])
+
+    # Process semantic results
+    for row in semantic_rows:
+        interaction_id = row["id"]
+        if interaction_id not in interaction_scores:
+            interaction_scores[interaction_id] = {
+                "row": row,
+                "fuzzy": 0.0,
+                "term": 0.0,
+                "semantic": 0.0,
+            }
+        interaction_scores[interaction_id]["semantic"] = float(row["score"])
+
+    # Calculate weighted scores and create results
+    results = []
+    for data in interaction_scores.values():
+        weighted_score = (
+            data["semantic"] * SEMANTIC_WEIGHT
+            + data["fuzzy"] * FUZZY_WEIGHT
+            + data["term"] * TERM_WEIGHT
+        )
+
+        row = data["row"]
+        results.append(
+            SearchResult(
+                result_type="interaction",
+                interaction=SearchResultInteraction(
+                    id=row["id"],
+                    contact_id=row["contact_id"],
+                    interaction_date=row["interaction_date"],
+                    notes=row["notes"],
+                    location=row["location"],
+                    contact_first_name=row["contact_first_name"],
+                    contact_last_name=row["contact_last_name"],
+                ),
+                score=weighted_score,
+            )
+        )
+
+    # Sort by weighted score and apply limit
+    results.sort(key=lambda r: r.score, reverse=True)
+    results = results[:limit]
+
+    logger.info(
+        "hybrid_search_completed",
+        user_id=str(user_id),
+        query=query,
+        total_results=len(results),
+        unique_interactions=len(interaction_scores),
     )
 
     return results

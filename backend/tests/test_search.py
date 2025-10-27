@@ -1,6 +1,7 @@
 """Tests for search endpoints."""
 
 from datetime import date
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -353,3 +354,290 @@ class TestSearch:
             json={"query": "test", "search_type": "fuzzy", "limit": 0},
         )
         assert response.status_code == 422
+
+
+class TestHybridSearch:
+    """Tests for hybrid search functionality."""
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search_combines_all_types(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
+        """Test that hybrid search combines fuzzy, term, and semantic results."""
+        interaction_id = uuid4()
+        contact_id = uuid4()
+
+        # Mock embedding generation
+        mock_embedding = [0.1] * 1536
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=mock_embedding)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
+
+        # Mock all three search types returning the same interaction with different scores
+        mock_interaction = mock_db_connection.make_record(
+            id=interaction_id,
+            contact_id=contact_id,
+            interaction_date=date(2024, 1, 15),
+            notes="Coffee meeting to discuss project",
+            location="Starbucks",
+            contact_first_name="Alice",
+            contact_last_name="Smith",
+            score=0.8,
+        )
+
+        # Mock fetch to return different scores for each search type
+        # Since asyncio.gather runs in parallel, we need to return results in order
+        fuzzy_result = dict(mock_interaction, score=0.7)
+        term_result = dict(mock_interaction, score=1.0)
+        semantic_result = dict(mock_interaction, score=0.9)
+
+        mock_db_connection.fetch.side_effect = [
+            [fuzzy_result],  # First call: fuzzy
+            [term_result],  # Second call: term
+            [semantic_result],  # Third call: semantic
+        ]
+
+        response = await client.post(
+            "/api/search",
+            json={"query": "coffee meeting", "search_type": "hybrid", "limit": 10},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["search_type"] == "hybrid"
+        assert data["total_results"] == 1
+        assert len(data["results"]) == 1
+
+        result = data["results"][0]
+        assert result["result_type"] == "interaction"
+        assert result["interaction"]["notes"] == "Coffee meeting to discuss project"
+
+        # Weighted score: 0.9*0.5 + 0.7*0.3 + 1.0*0.2 = 0.45 + 0.21 + 0.2 = 0.86
+        assert abs(result["score"] - 0.86) < 0.01
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search_deduplicates_results(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
+        """Test that hybrid search properly deduplicates same interaction across search types."""
+        interaction_id = uuid4()
+        contact_id = uuid4()
+
+        # Mock embedding generation
+        mock_embedding = [0.1] * 1536
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=mock_embedding)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
+
+        mock_interaction = mock_db_connection.make_record(
+            id=interaction_id,
+            contact_id=contact_id,
+            interaction_date=date(2024, 1, 15),
+            notes="Important meeting",
+            location="Office",
+            contact_first_name="Bob",
+            contact_last_name="Jones",
+            score=0.8,
+        )
+
+        # All three searches return the same interaction
+        mock_db_connection.fetch.side_effect = [
+            [mock_interaction],  # Fuzzy
+            [mock_interaction],  # Term
+            [mock_interaction],  # Semantic
+        ]
+
+        response = await client.post(
+            "/api/search",
+            json={"query": "meeting", "search_type": "hybrid", "limit": 10},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only return one result despite appearing in all three searches
+        assert data["total_results"] == 1
+        assert len(data["results"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search_merges_different_interactions(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
+        """Test that hybrid search merges different interactions from different search types."""
+        interaction1_id = uuid4()
+        interaction2_id = uuid4()
+        interaction3_id = uuid4()
+        contact_id = uuid4()
+
+        # Mock embedding generation
+        mock_embedding = [0.1] * 1536
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=mock_embedding)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
+
+        # Different interactions from each search type
+        fuzzy_interaction = mock_db_connection.make_record(
+            id=interaction1_id,
+            contact_id=contact_id,
+            interaction_date=date(2024, 1, 15),
+            notes="Fuzzy match interaction",
+            location="Park",
+            contact_first_name="Alice",
+            contact_last_name="Smith",
+            score=0.9,
+        )
+
+        term_interaction = mock_db_connection.make_record(
+            id=interaction2_id,
+            contact_id=contact_id,
+            interaction_date=date(2024, 1, 16),
+            notes="Term match interaction",
+            location="Cafe",
+            contact_first_name="Bob",
+            contact_last_name="Jones",
+            score=1.0,
+        )
+
+        semantic_interaction = mock_db_connection.make_record(
+            id=interaction3_id,
+            contact_id=contact_id,
+            interaction_date=date(2024, 1, 17),
+            notes="Semantic match interaction",
+            location="Office",
+            contact_first_name="Carol",
+            contact_last_name="White",
+            score=0.95,
+        )
+
+        mock_db_connection.fetch.side_effect = [
+            [fuzzy_interaction],  # Fuzzy
+            [term_interaction],  # Term
+            [semantic_interaction],  # Semantic
+        ]
+
+        response = await client.post(
+            "/api/search",
+            json={"query": "test query", "search_type": "hybrid", "limit": 10},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should return all three unique interactions
+        assert data["total_results"] == 3
+        assert len(data["results"]) == 3
+
+        # Results should be sorted by weighted score (descending)
+        # Semantic: 0.95*0.5 = 0.475
+        # Fuzzy: 0.9*0.3 = 0.27
+        # Term: 1.0*0.2 = 0.2
+        scores = [r["score"] for r in data["results"]]
+        assert scores == sorted(scores, reverse=True)
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search_respects_limit(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
+        """Test that hybrid search respects the result limit."""
+        contact_id = uuid4()
+
+        # Mock embedding generation
+        mock_embedding = [0.1] * 1536
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=mock_embedding)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
+
+        # Create 5 different interactions
+        interactions = [
+            mock_db_connection.make_record(
+                id=uuid4(),
+                contact_id=contact_id,
+                interaction_date=date(2024, 1, i + 1),
+                notes=f"Interaction {i}",
+                location="Location",
+                contact_first_name="User",
+                contact_last_name="Name",
+                score=0.9 - (i * 0.1),
+            )
+            for i in range(5)
+        ]
+
+        mock_db_connection.fetch.side_effect = [
+            interactions[:3],  # Fuzzy
+            interactions[2:],  # Term
+            interactions[1:4],  # Semantic
+        ]
+
+        response = await client.post(
+            "/api/search",
+            json={"query": "test", "search_type": "hybrid", "limit": 3},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only return 3 results despite more being available
+        assert data["total_results"] == 3
+        assert len(data["results"]) == 3
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search_empty_results(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
+        """Test hybrid search with no results."""
+        # Mock embedding generation
+        mock_embedding = [0.1] * 1536
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=mock_embedding)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
+
+        # All searches return empty
+        mock_db_connection.fetch.side_effect = [
+            [],  # Fuzzy
+            [],  # Term
+            [],  # Semantic
+        ]
+
+        response = await client.post(
+            "/api/search",
+            json={"query": "nonexistent", "search_type": "hybrid", "limit": 10},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["total_results"] == 0
+        assert len(data["results"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search_generates_embedding(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
+        """Test that hybrid search calls embedding generation."""
+        # Mock embedding generation
+        mock_embedding = [0.1] * 1536
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=mock_embedding)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
+
+        mock_db_connection.fetch.side_effect = [[], [], []]
+
+        response = await client.post(
+            "/api/search",
+            json={"query": "test query for embedding", "search_type": "hybrid", "limit": 10},
+        )
+
+        assert response.status_code == 200
+
+        # Verify embedding was generated
+        mock_openai_client.embeddings.create.assert_called_once_with(
+            model="text-embedding-3-small",
+            input="test query for embedding",
+        )

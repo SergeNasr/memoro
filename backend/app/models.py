@@ -202,6 +202,7 @@ class SearchType(str, Enum):
     SEMANTIC = "semantic"
     FUZZY = "fuzzy"
     TERM = "term"
+    HYBRID = "hybrid"
 
 
 class SearchRequest(BaseModel):
@@ -210,7 +211,7 @@ class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1, description="Search query string")
     search_type: SearchType = Field(
         SearchType.SEMANTIC,
-        description="Search type: semantic, fuzzy, or term",
+        description="Search type: semantic, fuzzy, term, or hybrid",
     )
     limit: int = Field(10, ge=1, le=100, description="Maximum number of results to return")
 
