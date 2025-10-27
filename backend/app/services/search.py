@@ -23,6 +23,30 @@ SQL_TERM_CONTACTS = load_sql("search/term_contacts.sql")
 SQL_TERM_INTERACTIONS = load_sql("search/term_interactions.sql")
 SQL_SEMANTIC_INTERACTIONS = load_sql("search/semantic_interactions.sql")
 
+# Hybrid search weight configuration
+HYBRID_SEARCH_WEIGHTS = {
+    "semantic": 0.5,
+    "fuzzy": 0.3,
+    "term": 0.2,
+}
+
+
+def _add_or_update_score(
+    interaction_scores: dict[UUID, dict],
+    row: dict,
+    score_key: str,
+) -> None:
+    """Add or update score for an interaction in hybrid search."""
+    interaction_id = row["id"]
+    if interaction_id not in interaction_scores:
+        interaction_scores[interaction_id] = {
+            "row": row,
+            "fuzzy": 0.0,
+            "term": 0.0,
+            "semantic": 0.0,
+        }
+    interaction_scores[interaction_id][score_key] = float(row["score"])
+
 
 async def perform_search(
     conn: asyncpg.Connection,
@@ -175,58 +199,34 @@ async def perform_hybrid_search(
     term_rows = await conn.fetch(SQL_TERM_INTERACTIONS, user_id, query, limit)
     semantic_rows = await conn.fetch(SQL_SEMANTIC_INTERACTIONS, user_id, embedding_str, limit)
 
-    # Weight configuration
-    SEMANTIC_WEIGHT = 0.5
-    FUZZY_WEIGHT = 0.3
-    TERM_WEIGHT = 0.2
+    logger.debug(
+        "search_results_fetched",
+        fuzzy_count=len(fuzzy_rows),
+        term_count=len(term_rows),
+        semantic_count=len(semantic_rows),
+    )
+
+    # Early return if no results
+    if not fuzzy_rows and not term_rows and not semantic_rows:
+        logger.info("hybrid_search_no_results", query=query)
+        return []
 
     # Collect scores by interaction ID
     interaction_scores: dict[UUID, dict] = {}
 
-    # Process fuzzy results
-    for row in fuzzy_rows:
-        interaction_id = row["id"]
-        if interaction_id not in interaction_scores:
-            interaction_scores[interaction_id] = {
-                "row": row,
-                "fuzzy": 0.0,
-                "term": 0.0,
-                "semantic": 0.0,
-            }
-        interaction_scores[interaction_id]["fuzzy"] = float(row["score"])
-
-    # Process term results
-    for row in term_rows:
-        interaction_id = row["id"]
-        if interaction_id not in interaction_scores:
-            interaction_scores[interaction_id] = {
-                "row": row,
-                "fuzzy": 0.0,
-                "term": 0.0,
-                "semantic": 0.0,
-            }
-        interaction_scores[interaction_id]["term"] = float(row["score"])
-
-    # Process semantic results
-    for row in semantic_rows:
-        interaction_id = row["id"]
-        if interaction_id not in interaction_scores:
-            interaction_scores[interaction_id] = {
-                "row": row,
-                "fuzzy": 0.0,
-                "term": 0.0,
-                "semantic": 0.0,
-            }
-        interaction_scores[interaction_id]["semantic"] = float(row["score"])
+    # Process all search results
+    for search_type, rows in [
+        ("fuzzy", fuzzy_rows),
+        ("term", term_rows),
+        ("semantic", semantic_rows),
+    ]:
+        for row in rows:
+            _add_or_update_score(interaction_scores, row, search_type)
 
     # Calculate weighted scores and create results
     results = []
     for data in interaction_scores.values():
-        weighted_score = (
-            data["semantic"] * SEMANTIC_WEIGHT
-            + data["fuzzy"] * FUZZY_WEIGHT
-            + data["term"] * TERM_WEIGHT
-        )
+        weighted_score = sum(data[key] * weight for key, weight in HYBRID_SEARCH_WEIGHTS.items())
 
         row = data["row"]
         results.append(
