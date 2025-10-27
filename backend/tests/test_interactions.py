@@ -111,10 +111,18 @@ class TestConfirmInteraction:
     """Tests for POST /api/interactions/confirm endpoint."""
 
     @pytest.mark.asyncio
-    async def test_confirm_interaction_success(self, client: AsyncClient, mock_db_transaction):
+    async def test_confirm_interaction_success(
+        self, client: AsyncClient, mock_db_transaction, mock_openai_client
+    ):
         """Test successful confirmation and persistence of interaction."""
         contact_id = uuid4()
         interaction_id = uuid4()
+
+        # Mock embedding generation
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=[0.1] * 1536)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
 
         # Configure mock to return different values for different queries
         def mock_fetchrow_side_effect(*args, **kwargs):
@@ -190,11 +198,17 @@ class TestConfirmInteraction:
 
     @pytest.mark.asyncio
     async def test_confirm_interaction_no_family_members(
-        self, client: AsyncClient, mock_db_transaction
+        self, client: AsyncClient, mock_db_transaction, mock_openai_client
     ):
         """Test confirmation without family members."""
         contact_id = uuid4()
         interaction_id = uuid4()
+
+        # Mock embedding generation
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=[0.1] * 1536)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
 
         def mock_fetchrow_side_effect(*args, **kwargs):
             if "interaction" in str(args[0]).lower() and "INSERT" in str(args[0]):
@@ -314,11 +328,19 @@ class TestUpdateInteraction:
     """Tests for PATCH /api/interactions/{id} endpoint."""
 
     @pytest.mark.asyncio
-    async def test_update_interaction_success(self, client: AsyncClient, mock_db_connection):
+    async def test_update_interaction_success(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
         """Test successful interaction update."""
 
         interaction_id = uuid4()
         contact_id = uuid4()
+
+        # Mock embedding generation
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=[0.1] * 1536)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
 
         # Mock fetchrow (update returns updated row)
         mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(
@@ -349,10 +371,18 @@ class TestUpdateInteraction:
         assert data["interaction_date"] == "2025-10-03"
 
     @pytest.mark.asyncio
-    async def test_update_interaction_not_found(self, client: AsyncClient, mock_db_connection):
+    async def test_update_interaction_not_found(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
         """Test updating non-existent interaction."""
 
         interaction_id = uuid4()
+
+        # Mock embedding generation
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=[0.1] * 1536)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
 
         # Mock fetchrow returns None (interaction not found)
         mock_db_connection.fetchrow.return_value = None
@@ -365,11 +395,19 @@ class TestUpdateInteraction:
         assert "Interaction not found" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_update_interaction_partial(self, client: AsyncClient, mock_db_connection):
+    async def test_update_interaction_partial(
+        self, client: AsyncClient, mock_db_connection, mock_openai_client
+    ):
         """Test partial update (only some fields)."""
 
         interaction_id = uuid4()
         contact_id = uuid4()
+
+        # Mock embedding generation
+        mock_embedding_response = AsyncMock()
+        mock_embedding_response.data = [AsyncMock(embedding=[0.1] * 1536)]
+        mock_embedding_response.usage = AsyncMock(total_tokens=10)
+        mock_openai_client.embeddings.create = AsyncMock(return_value=mock_embedding_response)
 
         # Mock fetchrow - only notes updated
         mock_db_connection.fetchrow.return_value = mock_db_connection.make_record(
@@ -473,8 +511,9 @@ class TestInteractionEmbeddings:
         # Mock database responses
         def mock_fetchrow_side_effect(*args, **kwargs):
             if "interaction" in str(args[0]).lower() and "INSERT" in str(args[0]):
-                # Verify embedding was passed
-                assert args[6] == mock_embedding  # 7th parameter is embedding
+                # Verify embedding was passed as pgvector string format
+                expected_embedding_str = f"[{','.join(map(str, mock_embedding))}]"
+                assert args[6] == expected_embedding_str  # 7th parameter is embedding
                 return mock_db_transaction.make_record(
                     id=interaction_id,
                     user_id=UUID("00000000-0000-0000-0000-000000000000"),
@@ -540,9 +579,10 @@ class TestInteractionEmbeddings:
 
         # Mock database response
         def mock_fetchrow(*args, **kwargs):
-            # Verify new embedding was passed
+            # Verify new embedding was passed as pgvector string format
             if len(args) > 6:
-                assert args[6] == mock_embedding
+                expected_embedding_str = f"[{','.join(map(str, mock_embedding))}]"
+                assert args[6] == expected_embedding_str
             return mock_db_connection.make_record(
                 id=interaction_id,
                 user_id=UUID("00000000-0000-0000-0000-000000000000"),
