@@ -546,21 +546,90 @@ main {
 }
 
 /* Family members */
+.family-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.family-section h3 {
+    margin: 0;
+}
+
+.btn-sm {
+    padding: 3px 8px;
+    font-size: 8pt;
+}
+
+.family-form {
+    background-color: var(--hover-color);
+    padding: 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.family-form .form-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.family-form .form-group {
+    flex: 1;
+}
+
+.family-form label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 9pt;
+    color: var(--accent-color);
+}
+
+.family-form select {
+    width: 100%;
+    padding: 4px;
+    font-family: var(--font-sans);
+    font-size: 9pt;
+    border: 1px solid var(--input-border);
+    background-color: white;
+}
+
+.family-form .form-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
 .family-list {
     list-style: none;
 }
 
 .family-item {
-    padding: 4px 0;
+    padding: 8px;
     font-size: 9pt;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.family-item a {
+.family-item:last-child {
+    border-bottom: none;
+}
+
+.family-member-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.family-name {
     color: var(--text-color);
     text-decoration: none;
 }
 
-.family-item a:hover {
+.family-name:hover {
     color: var(--accent-color);
     text-decoration: underline;
 }
@@ -568,6 +637,54 @@ main {
 .family-relationship {
     color: var(--meta-color);
     font-size: 8pt;
+}
+
+.family-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.family-item-edit {
+    background-color: var(--hover-color);
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.family-item-edit form {
+    width: 100%;
+}
+
+.family-edit-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.form-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-group-inline label {
+    font-size: 9pt;
+    color: var(--accent-color);
+    white-space: nowrap;
+}
+
+.form-group-inline select {
+    padding: 4px;
+    font-family: var(--font-sans);
+    font-size: 9pt;
+    border: 1px solid var(--input-border);
+    background-color: white;
+}
+
+.empty-state {
+    color: var(--meta-color);
+    font-size: 9pt;
+    font-style: italic;
 }
 
 /* Action buttons inline */
