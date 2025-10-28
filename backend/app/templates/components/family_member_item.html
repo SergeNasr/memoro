@@ -6,14 +6,10 @@
         <span class="family-relationship">({{ member.relationship }})</span>
     </div>
     <div class="family-actions">
-        <button class="btn-icon" title="Edit relationship" hx-get="/ui/family-members/{{ member.id }}/edit"
-            hx-target="#family-member-{{ member.id }}" hx-swap="outerHTML">
-            ✏️
-        </button>
-        <button class="btn-icon" title="Remove relationship" hx-delete="/ui/family-members/{{ member.id }}"
+        <button class="btn-icon" hx-get="/ui/family-members/{{ member.id }}/edit"
+            hx-target="#family-member-{{ member.id }}" hx-swap="outerHTML" title="Edit relationship">[edit]</button>
+        <button class="btn-icon" hx-delete="/ui/family-members/{{ member.id }}"
             hx-target="#family-member-{{ member.id }}" hx-swap="outerHTML"
-            hx-confirm="Remove this family relationship?">
-            🗑️
-        </button>
+            hx-confirm="Remove this family relationship?" title="Remove relationship">[delete]</button>
     </div>
 </li>

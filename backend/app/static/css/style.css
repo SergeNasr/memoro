@@ -557,11 +557,6 @@ main {
     margin: 0;
 }
 
-.btn-sm {
-    padding: 3px 8px;
-    font-size: 8pt;
-}
-
 .family-form {
     background-color: var(--hover-color);
     padding: 12px;

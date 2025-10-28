@@ -1,10 +1,8 @@
 <div class="family-section" id="family-members-{{ contact.id }}">
     <div class="section-header">
         <h3>Family Members</h3>
-        <button class="btn-secondary btn-sm" hx-get="/ui/contacts/{{ contact.id }}/family-members/new"
-            hx-target="#family-form-container" hx-swap="innerHTML">
-            Add Family Member
-        </button>
+        <button class="btn-icon" hx-get="/ui/contacts/{{ contact.id }}/family-members/new"
+            hx-target="#family-form-container" hx-swap="innerHTML" title="Add family member">[add]</button>
     </div>
 
     <div id="family-form-container"></div>
