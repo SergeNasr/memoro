@@ -154,3 +154,15 @@ import-execute tsv_file:
     @echo "   Run 'just import {{tsv_file}}' to preview first"
     @echo ""
     uv run python scripts/import_tsv.py --execute {{tsv_file}}
+
+# Rollback import by deleting contacts from TSV file (preview mode by default)
+import-rollback tsv_file:
+    uv run python scripts/rollback_import.py {{tsv_file}}
+
+# Actually rollback import (DESTRUCTIVE - deletes contacts)
+import-rollback-execute tsv_file:
+    @echo "⚠️  This will DELETE all contacts from the TSV file!"
+    @echo "   This includes all interactions and relationships!"
+    @echo "   Run 'just import-rollback {{tsv_file}}' to preview first"
+    @echo ""
+    uv run python scripts/rollback_import.py --execute {{tsv_file}}

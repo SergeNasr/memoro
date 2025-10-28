@@ -70,3 +70,20 @@ Caspian	Kimia Hamidi / Son	Ramp
 - `DATABASE_URL` environment variable set
 - `OPENAI_API_KEY` environment variable set (only for execute mode)
 
+**Rollback:**
+If you need to undo an import, you can rollback using the same TSV file:
+
+```bash
+# Preview what will be deleted
+just import-rollback path/to/contacts.tsv
+
+# Actually delete the contacts (DESTRUCTIVE!)
+just import-rollback-execute path/to/contacts.tsv
+
+# Or run directly with Python
+python scripts/rollback_import.py path/to/contacts.tsv           # preview
+python scripts/rollback_import.py --execute path/to/contacts.tsv  # execute
+```
+
+⚠️ **Warning**: Rollback deletes contacts and all associated interactions and family relationships!
+

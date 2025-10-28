@@ -75,30 +75,25 @@ def parse_row_data(row: dict) -> dict | None:
     related_name, relationship = parse_relationship(relationship_field)
 
     # Parse related person if exists
+    # Note: relationship field means "Related Person is my X"
+    # e.g., "Kimia Hamidi / Son" means "Kimia Hamidi is my son"
+    # So we need to store the INVERSE for the main person
     related_data = None
     if related_name and relationship:
         related_first, related_last = parse_name(related_name)
+        # Store the inverse relationship for the main person
+        # e.g., if "Kimia is my son", then I am Kimia's parent
+        inverse_rel = get_inverse_relationship(relationship)
         related_data = {
             "first_name": related_first,
             "last_name": related_last,
             "full_name": f"{related_first} {related_last}".strip(),
-            "relationship": relationship,
+            "relationship": inverse_rel,  # Store inverse for main person
+            "original_relationship": relationship,  # Keep original for related person
         }
 
-    # Build interaction notes
-    notes_parts = []
-    if place:
-        notes_parts.append(f"Met at {place}")
-    if description:
-        notes_parts.append(description)
-
-    notes = (
-        ". ".join(notes_parts)
-        if notes_parts
-        else f"Contact from {place}"
-        if place
-        else "Imported contact"
-    )
+    # Build interaction notes (only use description if present)
+    notes = description.strip() if description else ""
 
     return {
         "first_name": first_name,
@@ -106,8 +101,9 @@ def parse_row_data(row: dict) -> dict | None:
         "full_name": f"{first_name} {last_name}".strip(),
         "place": place or None,
         "notes": notes,
-        "has_description": bool(notes_parts),
+        "has_description": bool(notes),
         "related_data": related_data,
+        "from_csv": True,  # Mark as original CSV entry
     }
 
 
@@ -319,16 +315,20 @@ def _parse_tsv_file(tsv_path: Path) -> list[dict]:
             if parsed:
                 people_to_import.append(parsed)
                 # If they have a related person, add that person to the list too
+                # with the REVERSE relationship back to the main person
                 if parsed["related_data"]:
                     rel = parsed["related_data"]
+                    # Create entry for related person WITHOUT relationship data
+                    # (relationships will only be created from original CSV entries)
                     related_parsed = {
                         "first_name": rel["first_name"],
                         "last_name": rel["last_name"],
                         "full_name": rel["full_name"],
-                        "notes": "Family member",
+                        "notes": "",
                         "place": parsed["place"],
                         "has_description": False,
-                        "related_data": None,  # Don't cascade relationships
+                        "related_data": None,  # Don't create reverse relationship
+                        "from_csv": False,  # Mark as auto-added
                     }
                     people_to_import.append(related_parsed)
 
@@ -382,6 +382,7 @@ async def _execute_import(
     skipped_count = 0
 
     async with conn.transaction():
+        # Phase 1: Create all contacts
         for person in unique_people:
             try:
                 contact_id = contact_cache.get(person["full_name"])
@@ -402,8 +403,15 @@ async def _execute_import(
                     logger.info("contact_created", name=person["full_name"])
                     imported_count += 1
 
-                # Link family relationship if this person has one
-                if person.get("related_data"):
+            except Exception as e:
+                logger.error("failed_to_import_person", person=person["full_name"], error=str(e))
+                skipped_count += 1
+
+        # Phase 2: Link all family relationships (after all contacts are created)
+        for person in unique_people:
+            try:
+                # Only process relationships from original CSV entries to avoid duplicates
+                if person.get("related_data") and person.get("from_csv"):
                     rel = person["related_data"]
                     main_id = contact_cache.get(person["full_name"])
                     rel_id = contact_cache.get(rel["full_name"])
@@ -424,8 +432,9 @@ async def _execute_import(
                         )
 
             except Exception as e:
-                logger.error("failed_to_import_person", person=person["full_name"], error=str(e))
-                skipped_count += 1
+                logger.error(
+                    "failed_to_link_relationship", person=person["full_name"], error=str(e)
+                )
 
     return imported_count, skipped_count
 
