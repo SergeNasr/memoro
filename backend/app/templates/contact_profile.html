@@ -11,19 +11,11 @@
     {% endwith %}
 
     <!-- Family Members -->
-    {% if summary.family_members %}
     <div class="profile-section">
-        <h3>Family Members</h3>
-        <ul class="family-list">
-            {% for member in summary.family_members %}
-            <li class="family-item">
-                <a href="/contacts/{{ member.family_contact_id }}">{{ member.first_name }} {{ member.last_name }}</a>
-                <span class="family-relationship">({{ member.relationship }})</span>
-            </li>
-            {% endfor %}
-        </ul>
+        {% with contact=summary.contact, family_members=summary.family_members %}
+        {% include 'components/family_member_list.html' %}
+        {% endwith %}
     </div>
-    {% endif %}
 
     <!-- Recent Interactions -->
     {% if summary.recent_interactions %}

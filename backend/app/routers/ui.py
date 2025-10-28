@@ -13,6 +13,7 @@ from backend.app.constants import TemplateConstants
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.models import SearchType
 from backend.app.services import contacts as contact_service
+from backend.app.services import family_members as family_service
 from backend.app.services import interactions as interaction_service
 from backend.app.services import search as search_service
 
@@ -538,3 +539,231 @@ async def delete_contact_ui(
     )
 
     return HTMLResponse(content="", status_code=200, headers={"HX-Redirect": "/"})
+
+
+@router.get("/ui/contacts/{contact_id}/family-members/new", response_class=HTMLResponse)
+async def get_new_family_member_form(
+    request: Request,
+    contact_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Returns form to add a new family member relationship.
+    """
+    summary = await contact_service.get_contact_summary(conn, contact_id, user_id)
+    if summary is None:
+        return HTMLResponse(content="<div>Contact not found</div>", status_code=404)
+
+    contacts = await family_service.list_contacts_for_selection(conn, user_id, contact_id)
+
+    return templates.TemplateResponse(
+        request,
+        "components/family_member_new.html",
+        {
+            "contact": summary.contact,
+            "available_contacts": contacts,
+            "common_relationships": [
+                "parent",
+                "child",
+                "spouse",
+                "partner",
+                "sibling",
+                "grandparent",
+                "grandchild",
+                "aunt/uncle",
+                "niece/nephew",
+                "cousin",
+                "friend",
+            ],
+        },
+    )
+
+
+@router.post("/ui/contacts/{contact_id}/family-members", response_class=HTMLResponse)
+async def create_family_member_ui(
+    request: Request,
+    contact_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Create a new family member relationship and return updated family list.
+    """
+    form_data = await request.form()
+
+    family_contact_id_str = form_data.get("family_contact_id")
+    relationship = form_data.get("relationship")
+
+    if not family_contact_id_str or not relationship:
+        return HTMLResponse(
+            content="<div>Family contact and relationship are required</div>", status_code=400
+        )
+
+    try:
+        family_contact_id = UUID(family_contact_id_str)
+    except ValueError:
+        return HTMLResponse(content="<div>Invalid contact ID</div>", status_code=400)
+
+    family_member = await family_service.create_family_member_relationship(
+        conn, user_id, contact_id, family_contact_id, relationship, bidirectional=True
+    )
+
+    if family_member is None:
+        return HTMLResponse(
+            content="<div>Could not create relationship (may already exist)</div>", status_code=400
+        )
+
+    logger.info(
+        "family_member_created_via_ui",
+        contact_id=str(contact_id),
+        family_contact_id=str(family_contact_id),
+        relationship=relationship,
+    )
+
+    # Return updated family member list
+    summary = await contact_service.get_contact_summary(conn, contact_id, user_id)
+    if summary is None:
+        return HTMLResponse(content="", status_code=200)
+
+    return templates.TemplateResponse(
+        request,
+        "components/family_member_list.html",
+        {
+            "contact": summary.contact,
+            "family_members": summary.family_members,
+        },
+    )
+
+
+@router.get("/ui/family-members/{family_member_id}/edit", response_class=HTMLResponse)
+async def get_family_member_edit_form(
+    request: Request,
+    family_member_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Returns inline edit form for a family member relationship.
+    """
+    family_member = await family_service.get_family_member_by_id(conn, family_member_id, user_id)
+
+    if family_member is None:
+        return HTMLResponse(content="<div>Family member not found</div>", status_code=404)
+
+    # Get contact details for display
+    family_members = await family_service.get_family_members_with_details(
+        conn, family_member.contact_id, user_id
+    )
+
+    # Find the specific family member with details
+    member_details = next((fm for fm in family_members if fm.id == family_member_id), None)
+
+    if member_details is None:
+        return HTMLResponse(content="<div>Family member not found</div>", status_code=404)
+
+    return templates.TemplateResponse(
+        request,
+        "components/family_member_edit.html",
+        {
+            "family_member": member_details,
+            "common_relationships": [
+                "parent",
+                "child",
+                "spouse",
+                "partner",
+                "sibling",
+                "grandparent",
+                "grandchild",
+                "aunt/uncle",
+                "niece/nephew",
+                "cousin",
+                "friend",
+            ],
+        },
+    )
+
+
+@router.patch("/ui/family-members/{family_member_id}", response_class=HTMLResponse)
+async def update_family_member_ui(
+    request: Request,
+    family_member_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Update a family member relationship and return the updated HTML fragment.
+    """
+    form_data = await request.form()
+    relationship = form_data.get("relationship")
+
+    if not relationship:
+        return HTMLResponse(content="<div>Relationship is required</div>", status_code=400)
+
+    family_member = await family_service.update_family_member_relationship(
+        conn, family_member_id, user_id, relationship
+    )
+
+    if family_member is None:
+        return HTMLResponse(content="<div>Family member not found</div>", status_code=404)
+
+    logger.info(
+        "family_member_updated_via_ui",
+        family_member_id=str(family_member_id),
+        new_relationship=relationship,
+    )
+
+    # Get updated family member details
+    family_members = await family_service.get_family_members_with_details(
+        conn, family_member.contact_id, user_id
+    )
+
+    member_details = next((fm for fm in family_members if fm.id == family_member_id), None)
+
+    if member_details is None:
+        return HTMLResponse(content="<div>Family member not found</div>", status_code=404)
+
+    # Return updated family member item
+    return templates.TemplateResponse(
+        request,
+        "components/family_member_item.html",
+        {
+            "member": member_details,
+        },
+    )
+
+
+@router.delete("/ui/family-members/{family_member_id}", response_class=HTMLResponse)
+async def delete_family_member_ui(
+    request: Request,
+    family_member_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Delete a family member relationship and return updated family list.
+    """
+    # Get family member first to get contact_id
+    family_member = await family_service.get_family_member_by_id(conn, family_member_id, user_id)
+
+    if family_member is None:
+        return HTMLResponse(content="<div>Family member not found</div>", status_code=404)
+
+    contact_id = family_member.contact_id
+
+    # Delete the relationship
+    deleted = await family_service.delete_family_member_relationship(
+        conn, family_member_id, user_id, bidirectional=True
+    )
+
+    if not deleted:
+        return HTMLResponse(content="<div>Failed to delete family member</div>", status_code=500)
+
+    logger.info(
+        "family_member_deleted_via_ui",
+        family_member_id=str(family_member_id),
+        contact_id=str(contact_id),
+    )
+
+    # Return empty content with success
+    return HTMLResponse(content="", status_code=200)
