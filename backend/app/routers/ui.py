@@ -36,7 +36,7 @@ async def homepage(
     """
     Homepage - displays contact list with search and pagination.
     """
-    page_size = 20
+    page_size = 50
     contacts, total, total_pages = await contact_service.get_contact_list(
         conn, user_id, page, page_size
     )
@@ -96,7 +96,7 @@ async def get_contact_list_fragment(
     Returns contact list HTML fragment for pagination.
     Used by HTMX for dynamic loading.
     """
-    page_size = 20
+    page_size = 50
     contacts, total, total_pages = await contact_service.get_contact_list(
         conn, user_id, page, page_size
     )

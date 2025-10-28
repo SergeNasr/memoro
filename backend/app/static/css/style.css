@@ -598,10 +598,13 @@ main {
 
 .family-list {
     list-style: none;
+    background-color: white;
+    border: 1px solid var(--border-color);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .family-item {
-    padding: 8px;
+    padding: 14px 12px;
     font-size: 9pt;
     border-bottom: 1px solid var(--border-color);
     display: flex;
