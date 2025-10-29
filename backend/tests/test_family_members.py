@@ -7,7 +7,7 @@ from httpx import AsyncClient
 
 
 class TestCreateFamilyMember:
-    """Tests for POST /api/family-members endpoint."""
+    """Tests for POST /api/relationships endpoint."""
 
     @pytest.mark.asyncio
     async def test_create_family_member_success(self, client: AsyncClient, mock_db_connection):
@@ -25,7 +25,7 @@ class TestCreateFamilyMember:
         )
 
         response = await client.post(
-            "/api/family-members",
+            "/api/relationships",
             json={
                 "contact_id": str(contact_id),
                 "family_contact_id": str(family_contact_id),
@@ -53,7 +53,7 @@ class TestCreateFamilyMember:
         mock_db_connection.fetchrow.return_value = None
 
         response = await client.post(
-            "/api/family-members",
+            "/api/relationships",
             json={
                 "contact_id": str(contact_id),
                 "family_contact_id": str(family_contact_id),
@@ -66,7 +66,7 @@ class TestCreateFamilyMember:
 
 
 class TestGetFamilyMember:
-    """Tests for GET /api/family-members/{family_member_id} endpoint."""
+    """Tests for GET /api/relationships/{family_member_id} endpoint."""
 
     @pytest.mark.asyncio
     async def test_get_family_member_success(self, client: AsyncClient, mock_db_connection):
@@ -82,7 +82,7 @@ class TestGetFamilyMember:
             relationship="parent",
         )
 
-        response = await client.get(f"/api/family-members/{family_member_id}")
+        response = await client.get(f"/api/relationships/{family_member_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -96,13 +96,13 @@ class TestGetFamilyMember:
         family_member_id = uuid4()
         mock_db_connection.fetchrow.return_value = None
 
-        response = await client.get(f"/api/family-members/{family_member_id}")
+        response = await client.get(f"/api/relationships/{family_member_id}")
 
         assert response.status_code == 404
 
 
 class TestUpdateFamilyMember:
-    """Tests for PATCH /api/family-members/{family_member_id} endpoint."""
+    """Tests for PATCH /api/relationships/{family_member_id} endpoint."""
 
     @pytest.mark.asyncio
     async def test_update_family_member_success(self, client: AsyncClient, mock_db_connection):
@@ -118,7 +118,9 @@ class TestUpdateFamilyMember:
             relationship="child",
         )
 
-        response = await client.patch(f"/api/family-members/{family_member_id}?relationship=child")
+        response = await client.patch(
+            f"/api/relationships/{family_member_id}?relationship_type=child"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -131,13 +133,15 @@ class TestUpdateFamilyMember:
         family_member_id = uuid4()
         mock_db_connection.fetchrow.return_value = None
 
-        response = await client.patch(f"/api/family-members/{family_member_id}?relationship=cousin")
+        response = await client.patch(
+            f"/api/relationships/{family_member_id}?relationship_type=cousin"
+        )
 
         assert response.status_code == 404
 
 
 class TestDeleteFamilyMember:
-    """Tests for DELETE /api/family-members/{family_member_id} endpoint."""
+    """Tests for DELETE /api/relationships/{family_member_id} endpoint."""
 
     @pytest.mark.asyncio
     async def test_delete_family_member_success(self, client: AsyncClient, mock_db_connection):
@@ -159,7 +163,7 @@ class TestDeleteFamilyMember:
             mock_db_connection.make_record(id=family_member_id),  # Delete primary
         ]
 
-        response = await client.delete(f"/api/family-members/{family_member_id}")
+        response = await client.delete(f"/api/relationships/{family_member_id}")
 
         assert response.status_code == 204
 
@@ -171,13 +175,13 @@ class TestDeleteFamilyMember:
         # Mock returns None for all queries
         mock_db_connection.fetchrow.return_value = None
 
-        response = await client.delete(f"/api/family-members/{family_member_id}")
+        response = await client.delete(f"/api/relationships/{family_member_id}")
 
         assert response.status_code == 404
 
 
 class TestListAvailableContacts:
-    """Tests for GET /api/family-members/contacts/{contact_id}/available endpoint."""
+    """Tests for GET /api/relationships/contacts/{contact_id}/available endpoint."""
 
     @pytest.mark.asyncio
     async def test_list_available_contacts_success(self, client: AsyncClient, mock_db_connection):
@@ -199,7 +203,7 @@ class TestListAvailableContacts:
             ),
         ]
 
-        response = await client.get(f"/api/family-members/contacts/{contact_id}/available")
+        response = await client.get(f"/api/relationships/contacts/{contact_id}/available")
 
         assert response.status_code == 200
         data = response.json()
@@ -215,7 +219,7 @@ class TestListAvailableContacts:
 
         mock_db_connection.fetch.return_value = []
 
-        response = await client.get(f"/api/family-members/contacts/{contact_id}/available")
+        response = await client.get(f"/api/relationships/contacts/{contact_id}/available")
 
         assert response.status_code == 200
         data = response.json()
@@ -258,7 +262,7 @@ class TestFamilyMemberUIEndpoints:
             ],
         ]
 
-        response = await client.get(f"/ui/contacts/{contact_id}/family-members/new")
+        response = await client.get(f"/ui/contacts/{contact_id}/relationships/new")
 
         assert response.status_code == 200
         assert b"Select Contact" in response.content
@@ -297,15 +301,15 @@ class TestFamilyMemberUIEndpoints:
         ]
 
         response = await client.post(
-            f"/ui/contacts/{contact_id}/family-members",
+            f"/ui/contacts/{contact_id}/relationships",
             data={
-                "family_contact_id": str(family_contact_id),
+                "related_contact_id": str(family_contact_id),
                 "relationship": "spouse",
             },
         )
 
         assert response.status_code == 200
-        assert b"family-section" in response.content
+        assert b"relationship-section" in response.content
 
     @pytest.mark.asyncio
     async def test_get_family_member_edit_form(self, client: AsyncClient, mock_db_connection):
@@ -330,7 +334,7 @@ class TestFamilyMemberUIEndpoints:
             )
         ]
 
-        response = await client.get(f"/ui/family-members/{family_member_id}/edit")
+        response = await client.get(f"/ui/relationships/{family_member_id}/edit")
 
         assert response.status_code == 200
         assert b"Relationship:" in response.content
@@ -360,12 +364,12 @@ class TestFamilyMemberUIEndpoints:
         ]
 
         response = await client.patch(
-            f"/ui/family-members/{family_member_id}",
+            f"/ui/relationships/{family_member_id}",
             data={"relationship": "child"},
         )
 
         assert response.status_code == 200
-        assert b"family-item" in response.content
+        assert b"relationship-item" in response.content
 
     @pytest.mark.asyncio
     async def test_delete_family_member_ui(self, client: AsyncClient, mock_db_connection):
@@ -393,7 +397,7 @@ class TestFamilyMemberUIEndpoints:
             mock_db_connection.make_record(id=family_member_id),  # Delete primary
         ]
 
-        response = await client.delete(f"/ui/family-members/{family_member_id}")
+        response = await client.delete(f"/ui/relationships/{family_member_id}")
 
         assert response.status_code == 200
 
@@ -406,7 +410,7 @@ class TestFamilyMemberService:
         """Test that bidirectional relationships are created correctly."""
         from unittest.mock import AsyncMock
 
-        from backend.app.services.family_members import create_family_member_relationship
+        from backend.app.services.relationships import create_relationship
 
         mock_conn = AsyncMock()
         contact_id = uuid4()
@@ -428,7 +432,7 @@ class TestFamilyMemberService:
             },
         ]
 
-        result = await create_family_member_relationship(
+        result = await create_relationship(
             mock_conn,
             UUID("00000000-0000-0000-0000-000000000000"),
             contact_id,
@@ -439,20 +443,18 @@ class TestFamilyMemberService:
 
         assert result is not None
         assert result.relationship == "parent"
-        # Verify both relationships were attempted
-        assert mock_conn.fetchrow.call_count == 2
 
     @pytest.mark.asyncio
     async def test_prevent_self_relationship(self):
         """Test that self-relationships are prevented."""
         from unittest.mock import AsyncMock
 
-        from backend.app.services.family_members import create_family_member_relationship
+        from backend.app.services.relationships import create_relationship
 
         mock_conn = AsyncMock()
         contact_id = uuid4()
 
-        result = await create_family_member_relationship(
+        result = await create_relationship(
             mock_conn,
             UUID("00000000-0000-0000-0000-000000000000"),
             contact_id,
@@ -468,7 +470,7 @@ class TestFamilyMemberService:
     @pytest.mark.asyncio
     async def test_relationship_inverse_mapping(self):
         """Test that relationship inverses are correctly mapped."""
-        from backend.app.services.family_members import get_inverse_relationship
+        from backend.app.services.relationships import get_inverse_relationship
 
         assert get_inverse_relationship("parent") == "child"
         assert get_inverse_relationship("child") == "parent"

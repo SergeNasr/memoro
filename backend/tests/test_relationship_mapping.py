@@ -29,7 +29,7 @@ class TestBidirectionalFamilyRelationships:
         family_insertions = []
 
         async def mock_fetchrow(query, *args):
-            if "INSERT INTO family_member" in query:
+            if "INSERT INTO relationship" in query:
                 contact_id, family_contact_id, rel = args[:3]
                 family_insertions.append((contact_id, family_contact_id, rel))
                 return {"id": uuid4()}
@@ -61,7 +61,7 @@ class TestBidirectionalFamilyRelationships:
             interaction_date="2024-01-15",
             notes="Had dinner with family",
             location=None,
-            family_members=family_members,
+            relationships=family_members,
         )
 
         # Verify one family member was linked

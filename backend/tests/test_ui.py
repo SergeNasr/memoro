@@ -32,7 +32,7 @@ class TestAnalyzeInteractionUI:
                 interaction_date=date(2025, 10, 15),
                 confidence=0.9,
             ),
-            family_members=[],
+            relationships=[],
         )
 
         mock_openai_client.beta.chat.completions.parse = AsyncMock(return_value=mock_completion)
@@ -79,7 +79,7 @@ class TestAnalyzeInteractionUI:
                 interaction_date=date(2025, 10, 15),
                 confidence=0.9,
             ),
-            family_members=[],
+            relationships=[],
         )
 
         mock_openai_client.beta.chat.completions.parse = AsyncMock(return_value=mock_completion)
