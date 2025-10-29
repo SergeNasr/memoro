@@ -29,11 +29,11 @@ class ExtractedContact(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Extraction confidence score")
 
 
-class ExtractedFamilyMember(BaseModel):
-    """Extracted family member information."""
+class ExtractedRelationship(BaseModel):
+    """Extracted relationship information."""
 
-    first_name: str | None = Field(None, description="Family member's first name")
-    last_name: str | None = Field(None, description="Family member's last name")
+    first_name: str | None = Field(None, description="Related person's first name")
+    last_name: str | None = Field(None, description="Related person's last name")
     relationship: str = Field(..., description="Relationship type (e.g., spouse, child, parent)")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Extraction confidence score")
 
@@ -52,8 +52,8 @@ class AnalyzeInteractionResponse(BaseModel):
 
     contact: ExtractedContact
     interaction: ExtractedInteraction
-    family_members: list[ExtractedFamilyMember] = Field(
-        default_factory=list, description="Extracted family members"
+    relationships: list[ExtractedRelationship] = Field(
+        default_factory=list, description="Extracted relationships"
     )
     raw_text: str = Field(..., description="Original input text")
 
@@ -63,8 +63,8 @@ class ConfirmInteractionRequest(BaseModel):
 
     contact: ExtractedContact
     interaction: ExtractedInteraction
-    family_members: list[ExtractedFamilyMember] = Field(
-        default_factory=list, description="Family members to link"
+    relationships: list[ExtractedRelationship] = Field(
+        default_factory=list, description="Relationships to link"
     )
 
 
@@ -73,7 +73,7 @@ class ConfirmInteractionResponse(BaseModel):
 
     contact_id: UUID = Field(..., description="ID of created/found contact")
     interaction_id: UUID = Field(..., description="ID of created interaction")
-    family_members_linked: int = Field(..., description="Number of family members linked")
+    relationships_linked: int = Field(..., description="Number of relationships linked")
 
 
 # Contact Models
@@ -153,19 +153,19 @@ class Interaction(InteractionBase):
     user_id: UUID
 
 
-# Family Member Models
+# Relationship Models
 
 
-class FamilyMemberCreate(BaseModel):
-    """Family member creation request."""
+class RelationshipCreate(BaseModel):
+    """Relationship creation request."""
 
     contact_id: UUID
     family_contact_id: UUID
     relationship: str
 
 
-class FamilyMember(BaseModel):
-    """Family member response model."""
+class Relationship(BaseModel):
+    """Relationship response model."""
 
     id: UUID
     contact_id: UUID
@@ -173,8 +173,8 @@ class FamilyMember(BaseModel):
     relationship: str
 
 
-class FamilyMemberWithDetails(BaseModel):
-    """Family member with contact details."""
+class RelationshipWithDetails(BaseModel):
+    """Relationship with contact details."""
 
     id: UUID
     family_contact_id: UUID
@@ -189,7 +189,7 @@ class ContactSummary(BaseModel):
     contact: Contact
     total_interactions: int
     recent_interactions: list[Interaction]
-    family_members: list[FamilyMemberWithDetails]
+    relationships: list[RelationshipWithDetails]
     last_interaction_date: date | None
 
 

@@ -11,10 +11,10 @@ endif %} - Memoro{% endblock %}
     {% include 'components/contact_header.html' %}
     {% endwith %}
 
-    <!-- Family Members -->
+    <!-- Relationships -->
     <div class="profile-section">
-        {% with contact=summary.contact, family_members=summary.family_members %}
-        {% include 'components/family_member_list.html' %}
+        {% with contact=summary.contact, relationships=summary.relationships %}
+        {% include 'components/relationship_list.html' %}
         {% endwith %}
     </div>
 

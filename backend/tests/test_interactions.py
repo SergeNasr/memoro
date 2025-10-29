@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 import pytest
 from httpx import AsyncClient
 
-from backend.app.models import ExtractedContact, ExtractedFamilyMember, ExtractedInteraction
+from backend.app.models import ExtractedContact, ExtractedInteraction, ExtractedRelationship
 from backend.tests.conftest import make_openai_completion
 
 
@@ -30,8 +30,8 @@ class TestAnalyzeInteraction:
                 interaction_date=date(2025, 10, 2),
                 confidence=0.9,
             ),
-            family_members=[
-                ExtractedFamilyMember(
+            relationships=[
+                ExtractedRelationship(
                     first_name="Emma",
                     last_name=None,
                     relationship="child",
@@ -65,10 +65,10 @@ class TestAnalyzeInteraction:
         assert data["interaction"]["interaction_date"] == "2025-10-02"
         assert data["interaction"]["confidence"] == 0.9
 
-        # Verify family members
-        assert len(data["family_members"]) == 1
-        assert data["family_members"][0]["first_name"] == "Emma"
-        assert data["family_members"][0]["relationship"] == "child"
+        # Verify relationships
+        assert len(data["relationships"]) == 1
+        assert data["relationships"][0]["first_name"] == "Emma"
+        assert data["relationships"][0]["relationship"] == "child"
 
         # Verify raw text is preserved
         assert "Sarah Johnson" in data["raw_text"]
@@ -148,14 +148,14 @@ class TestConfirmInteraction:
                     created_at=None,
                     updated_at=None,
                 )
-            # Family member calls
+            # Relationship calls
             else:
                 return mock_db_transaction.make_record(
                     id=uuid4(),
                     first_name="Emma",
                     last_name="Johnson",
                     birthday=None,
-                    latest_news="Family member",
+                    latest_news="Related contact",
                     user_id=UUID("00000000-0000-0000-0000-000000000000"),
                 )
 
@@ -176,7 +176,7 @@ class TestConfirmInteraction:
                     "interaction_date": "2025-10-02",
                     "confidence": 0.9,
                 },
-                "family_members": [
+                "relationships": [
                     {
                         "first_name": "Emma",
                         "last_name": "Johnson",
@@ -193,14 +193,14 @@ class TestConfirmInteraction:
         # Verify response structure
         assert "contact_id" in data
         assert "interaction_id" in data
-        assert "family_members_linked" in data
-        assert data["family_members_linked"] == 1
+        assert "relationships_linked" in data
+        assert data["relationships_linked"] == 1
 
     @pytest.mark.asyncio
-    async def test_confirm_interaction_no_family_members(
+    async def test_confirm_interaction_no_relationships(
         self, client: AsyncClient, mock_db_transaction, mock_openai_client
     ):
-        """Test confirmation without family members."""
+        """Test confirmation without relationships."""
         contact_id = uuid4()
         interaction_id = uuid4()
 
@@ -249,13 +249,13 @@ class TestConfirmInteraction:
                     "interaction_date": "2025-10-02",
                     "confidence": 0.8,
                 },
-                "family_members": [],
+                "relationships": [],
             },
         )
 
         assert response.status_code == 201
         data = response.json()
-        assert data["family_members_linked"] == 0
+        assert data["relationships_linked"] == 0
 
     @pytest.mark.asyncio
     async def test_confirm_interaction_validation_error(
@@ -551,7 +551,7 @@ class TestInteractionEmbeddings:
                     "interaction_date": "2025-10-02",
                     "confidence": 0.9,
                 },
-                "family_members": [],
+                "relationships": [],
             },
         )
 

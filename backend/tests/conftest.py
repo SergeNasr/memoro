@@ -30,7 +30,7 @@ def test_user_id() -> UUID:
     return UUID("00000000-0000-0000-0000-000000000001")
 
 
-def make_openai_completion(contact, interaction, family_members=None):
+def make_openai_completion(contact, interaction, relationships=None):
     """Helper to create mock OpenAI completion response."""
     from unittest.mock import MagicMock
 
@@ -43,7 +43,7 @@ def make_openai_completion(contact, interaction, family_members=None):
                 parsed=MagicMock(
                     contact=contact,
                     interaction=interaction,
-                    family_members=family_members or [],
+                    relationships=relationships or [],
                 )
             ),
         )

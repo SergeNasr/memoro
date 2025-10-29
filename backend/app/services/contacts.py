@@ -11,8 +11,8 @@ from backend.app.db import load_sql
 from backend.app.models import (
     Contact,
     ContactSummary,
-    FamilyMemberWithDetails,
     Interaction,
+    RelationshipWithDetails,
 )
 
 logger = structlog.get_logger(__name__)
@@ -27,7 +27,7 @@ SQL_DELETE_CONTACT = load_sql("contacts/delete.sql")
 SQL_LIST_INTERACTIONS_BY_CONTACT = load_sql("interactions/list_by_contact.sql")
 SQL_COUNT_INTERACTIONS = load_sql("contacts/count_interactions.sql")
 SQL_RECENT_INTERACTIONS = load_sql("contacts/recent_interactions.sql")
-SQL_FAMILY_MEMBERS_WITH_DETAILS = load_sql("contacts/family_members_with_details.sql")
+SQL_RELATIONSHIPS_WITH_DETAILS = load_sql("contacts/relationships_with_details.sql")
 SQL_LAST_INTERACTION_DATE = load_sql("contacts/last_interaction_date.sql")
 
 
@@ -148,17 +148,17 @@ async def get_contact_summary(
         for row in recent_rows
     ]
 
-    # 4. Get family members with details
-    family_rows = await conn.fetch(SQL_FAMILY_MEMBERS_WITH_DETAILS, contact_id, user_id)
-    family_members = [
-        FamilyMemberWithDetails(
+    # 4. Get relationships with details
+    relationship_rows = await conn.fetch(SQL_RELATIONSHIPS_WITH_DETAILS, contact_id, user_id)
+    relationships = [
+        RelationshipWithDetails(
             id=row["id"],
             family_contact_id=row["family_contact_id"],
             relationship=row["relationship"],
             first_name=row["first_name"],
             last_name=row["last_name"],
         )
-        for row in family_rows
+        for row in relationship_rows
     ]
 
     # 5. Get last interaction date
@@ -169,7 +169,7 @@ async def get_contact_summary(
         contact=contact,
         total_interactions=total_interactions,
         recent_interactions=recent_interactions,
-        family_members=family_members,
+        relationships=relationships,
         last_interaction_date=last_interaction_date,
     )
 
@@ -178,7 +178,7 @@ async def get_contact_summary(
         contact_id=str(contact_id),
         user_id=str(user_id),
         total_interactions=total_interactions,
-        family_members_count=len(family_members),
+        relationships_count=len(relationships),
     )
 
     return summary

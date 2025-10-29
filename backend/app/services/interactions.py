@@ -9,7 +9,7 @@ import structlog
 from backend.app.db import load_sql
 from backend.app.models import (
     AnalyzeInteractionResponse,
-    ExtractedFamilyMember,
+    ExtractedRelationship,
     Interaction,
 )
 from backend.app.services.llm import (
@@ -25,7 +25,7 @@ logger = structlog.get_logger(__name__)
 SQL_FIND_OR_CREATE_CONTACT = load_sql("contacts/find_or_create.sql")
 SQL_UPDATE_LATEST_NEWS = load_sql("contacts/update_latest_news.sql")
 SQL_CREATE_INTERACTION = load_sql("interactions/create.sql")
-SQL_CREATE_FAMILY_MEMBER = load_sql("family_members/create.sql")
+SQL_CREATE_RELATIONSHIP = load_sql("relationships/create.sql")
 SQL_GET_INTERACTION_BY_ID = load_sql("interactions/get_by_id.sql")
 SQL_UPDATE_INTERACTION = load_sql("interactions/update.sql")
 SQL_DELETE_INTERACTION = load_sql("interactions/delete.sql")
@@ -35,7 +35,7 @@ async def analyze_interaction_text(text: str) -> AnalyzeInteractionResponse:
     """
     Analyze raw interaction text and extract structured information using LLM.
 
-    Returns extracted contact, interaction, and family member information with confidence scores.
+    Returns extracted contact, interaction, and relationship information with confidence scores.
     """
     result = await llm_analyze_interaction(text)
     return result
@@ -50,15 +50,15 @@ async def confirm_and_persist_interaction(
     interaction_date: date | str,
     notes: str,
     location: str | None,
-    family_members: list[dict[str, str]] | None = None,
+    relationships: list[dict[str, str]] | None = None,
 ) -> tuple[UUID, UUID, int]:
     """
     Confirm and persist interaction data to database.
 
-    Creates/finds contact, creates interaction, links family members, updates latest news.
+    Creates/finds contact, creates interaction, links relationships, updates latest news.
 
     Returns:
-        Tuple of (contact_id, interaction_id, family_members_linked)
+        Tuple of (contact_id, interaction_id, relationships_linked)
     """
     # 1. Find or create main contact
     contact_row = await conn.fetchrow(
@@ -103,32 +103,32 @@ async def confirm_and_persist_interaction(
         notes,
     )
 
-    # 5. Link family members
-    family_members_list = []
-    if family_members:
-        for fm in family_members:
-            if fm.get("first_name"):
-                family_members_list.append(
-                    ExtractedFamilyMember(
-                        first_name=fm["first_name"],
-                        last_name=fm.get("last_name"),
-                        relationship=fm.get("relationship", ""),
+    # 5. Link relationships
+    relationships_list = []
+    if relationships:
+        for rel in relationships:
+            if rel.get("first_name"):
+                relationships_list.append(
+                    ExtractedRelationship(
+                        first_name=rel["first_name"],
+                        last_name=rel.get("last_name"),
+                        relationship=rel.get("relationship", ""),
                         confidence=1.0,
                     )
                 )
 
-    family_count = await link_family_members(
-        conn, user_id, contact_id, first_name, family_members_list
+    relationship_count = await link_relationships(
+        conn, user_id, contact_id, first_name, relationships_list
     )
 
     logger.info(
         "interaction_confirmed",
         contact_id=str(contact_id),
         interaction_id=str(interaction_id),
-        family_members_linked=family_count,
+        relationships_linked=relationship_count,
     )
 
-    return contact_id, interaction_id, family_count
+    return contact_id, interaction_id, relationship_count
 
 
 # Relationship inverse mapping - single source of truth
@@ -141,72 +141,72 @@ RELATIONSHIP_INVERSES = {
 
 
 def get_inverse_relationship(relationship: str) -> str:
-    """Get the inverse relationship for bidirectional family links."""
+    """Get the inverse relationship for bidirectional links."""
     return RELATIONSHIP_INVERSES.get(relationship.lower(), "related_to")
 
 
-async def link_family_members(
+async def link_relationships(
     conn: asyncpg.Connection,
     user_id: UUID,
     contact_id: UUID,
     contact_first_name: str | None,
-    family_members: list[ExtractedFamilyMember],
+    relationships: list[ExtractedRelationship],
 ) -> int:
     """
-    Link family members to a contact bidirectionally.
+    Link relationships to a contact bidirectionally.
 
-    Creates contact records for family members if they don't exist, then creates
+    Creates contact records for related people if they don't exist, then creates
     relationships in both directions to ensure consistent querying.
 
-    Returns count of newly linked family members.
+    Returns count of newly linked relationships.
     """
-    family_count = 0
-    for family_member in family_members:
-        if not family_member.first_name:
+    relationship_count = 0
+    for relationship in relationships:
+        if not relationship.first_name:
             continue
 
-        # Create or find family member contact
-        family_contact_row = await conn.fetchrow(
+        # Create or find related contact
+        related_contact_row = await conn.fetchrow(
             SQL_FIND_OR_CREATE_CONTACT,
             user_id,
-            family_member.first_name,
-            family_member.last_name or "",
-            None,  # No birthday for family members yet
-            f"Family member of {contact_first_name}",
+            relationship.first_name,
+            relationship.last_name or "",
+            None,  # No birthday yet
+            f"Related to {contact_first_name}",
         )
-        family_contact_id = family_contact_row["id"]
+        related_contact_id = related_contact_row["id"]
 
-        # Create forward relationship (contact -> family_member)
+        # Create forward relationship (contact -> related_contact)
         forward_result = await conn.fetchrow(
-            SQL_CREATE_FAMILY_MEMBER,
+            SQL_CREATE_RELATIONSHIP,
             contact_id,
-            family_contact_id,
-            family_member.relationship,
+            related_contact_id,
+            relationship.relationship,
         )
 
-        # Create reverse relationship (family_member -> contact)
-        inverse_relationship = get_inverse_relationship(family_member.relationship)
+        # Create reverse relationship (related_contact -> contact)
+        inverse_relationship = get_inverse_relationship(relationship.relationship)
         reverse_result = await conn.fetchrow(
-            SQL_CREATE_FAMILY_MEMBER,
-            family_contact_id,
+            SQL_CREATE_RELATIONSHIP,
+            related_contact_id,
             contact_id,
             inverse_relationship,
         )
 
         # Count as linked if either relationship was created (not duplicate)
         if forward_result or reverse_result:
-            family_count += 1
+            relationship_count += 1
             logger.info(
-                "family_member_linked_bidirectionally",
+                "relationship_linked_bidirectionally",
                 contact_id=str(contact_id),
-                family_contact_id=str(family_contact_id),
-                forward_relationship=family_member.relationship,
+                related_contact_id=str(related_contact_id),
+                forward_relationship=relationship.relationship,
                 reverse_relationship=inverse_relationship,
                 forward_created=bool(forward_result),
                 reverse_created=bool(reverse_result),
             )
 
-    return family_count
+    return relationship_count
 
 
 async def get_interaction_by_id(
