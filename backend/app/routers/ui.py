@@ -459,14 +459,15 @@ async def update_contact_ui(
     birthday_str = form_data.get("birthday")
     birthday = date.fromisoformat(birthday_str) if birthday_str else None
 
-    contact = await contact_service.update_contact(
+    # Use the form-specific update that treats empty strings as NULL for optional fields
+    contact = await contact_service.update_contact_from_form(
         conn,
         contact_id,
         user_id,
-        first_name=form_data.get("first_name") or None,
-        last_name=form_data.get("last_name") or None,
+        first_name=form_data.get("first_name", ""),
+        last_name=form_data.get("last_name", ""),
         birthday=birthday,
-        latest_news=form_data.get("latest_news") or None,
+        latest_news=form_data.get("latest_news", ""),
     )
 
     if contact is None:

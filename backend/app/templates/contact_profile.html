@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}{{ summary.contact.first_name }} {{ summary.contact.last_name }} - Memoro{% endblock %}
+{% block title %}{{ summary.contact.first_name }}{% if summary.contact.last_name %} {{ summary.contact.last_name }}{%
+endif %} - Memoro{% endblock %}
 
 {% block content %}
 <div class="contact-profile">

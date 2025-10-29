@@ -13,7 +13,8 @@
             <div class="result-contact">
                 <a href="/contacts/{{ result.contact.id }}" class="contact-link">
                     <div class="contact-info">
-                        <h4>{{ result.contact.first_name }} {{ result.contact.last_name }}</h4>
+                        <h4>{{ result.contact.first_name }}{% if result.contact.last_name %} {{ result.contact.last_name
+                            }}{% endif %}</h4>
                         {% if result.contact.birthday %}
                         <p class="contact-birthday">🎂 {{ result.contact.birthday.strftime('%B %d') }}</p>
                         {% endif %}
