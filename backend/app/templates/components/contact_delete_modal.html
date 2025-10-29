@@ -6,7 +6,8 @@
             <button data-modal-close aria-label="Close">&times;</button>
         </div>
 
-        <p>Are you sure you want to delete <strong>{{ contact.first_name }} {{ contact.last_name }}</strong>?</p>
+        <p>Are you sure you want to delete <strong>{{ contact.first_name }}{% if contact.last_name %} {{
+                contact.last_name }}{% endif %}</strong>?</p>
 
         {% if total_interactions > 0 %}
         <p style="color: #ff6600; margin-top: 12px;">

@@ -1,6 +1,6 @@
 <div class="profile-header" id="contact-header-{{ contact.id }}">
     <div class="profile-header-top">
-        <h2>{{ contact.first_name }} {{ contact.last_name }}</h2>
+        <h2>{{ contact.first_name }}{% if contact.last_name %} {{ contact.last_name }}{% endif %}</h2>
         <button type="button" class="btn-icon" hx-get="/ui/contacts/{{ contact.id }}/edit"
             hx-target="#contact-header-{{ contact.id }}" hx-swap="outerHTML" title="Edit">[edit]</button>
         <button type="button" class="btn-icon" hx-get="/ui/contacts/{{ contact.id }}/delete" hx-target="body"

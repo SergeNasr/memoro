@@ -2,7 +2,8 @@
     <form hx-patch="/ui/family-members/{{ family_member.id }}" hx-target="#family-member-{{ family_member.id }}"
         hx-swap="outerHTML">
         <div class="family-edit-content">
-            <span class="family-name">{{ family_member.first_name }} {{ family_member.last_name }}</span>
+            <span class="family-name">{{ family_member.first_name }}{% if family_member.last_name %} {{
+                family_member.last_name }}{% endif %}</span>
             <div class="form-group-inline">
                 <label for="relationship-{{ family_member.id }}">Relationship:</label>
                 <select id="relationship-{{ family_member.id }}" name="relationship" required>

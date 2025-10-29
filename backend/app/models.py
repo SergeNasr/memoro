@@ -83,7 +83,7 @@ class ContactBase(BaseModel):
     """Base contact fields."""
 
     first_name: str
-    last_name: str
+    last_name: str | None = None
     birthday: date | None = None
     latest_news: str | None = None
 
@@ -180,7 +180,7 @@ class FamilyMemberWithDetails(BaseModel):
     family_contact_id: UUID
     relationship: str
     first_name: str
-    last_name: str
+    last_name: str | None
 
 
 class ContactSummary(BaseModel):
@@ -221,7 +221,7 @@ class SearchResultContact(BaseModel):
 
     id: UUID
     first_name: str
-    last_name: str
+    last_name: str | None
     birthday: date | None
     latest_news: str | None
 
@@ -235,7 +235,7 @@ class SearchResultInteraction(BaseModel):
     notes: str
     location: str | None
     contact_first_name: str
-    contact_last_name: str
+    contact_last_name: str | None
 
 
 class SearchResult(BaseModel):

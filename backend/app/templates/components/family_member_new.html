@@ -7,7 +7,8 @@
                 <select id="family_contact_id" name="family_contact_id" required>
                     <option value="">-- Select Contact --</option>
                     {% for c in available_contacts %}
-                    <option value="{{ c.id }}">{{ c.first_name }} {{ c.last_name }}</option>
+                    <option value="{{ c.id }}">{{ c.first_name }}{% if c.last_name %} {{ c.last_name }}{% endif %}
+                    </option>
                     {% endfor %}
                 </select>
             </div>

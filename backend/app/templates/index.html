@@ -39,7 +39,7 @@
         <li class="contact-item">
             <div>
                 <a href="/contacts/{{ contact.id }}" class="contact-name">
-                    {{ contact.first_name }} {{ contact.last_name }}
+                    {{ contact.first_name }}{% if contact.last_name %} {{ contact.last_name }}{% endif %}
                 </a>
                 {% if contact.latest_news %}
                 <div class="contact-meta">{{ contact.latest_news[:constants.CONTACT_NEWS_PREVIEW_LENGTH] }}{% if

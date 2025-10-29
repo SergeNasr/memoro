@@ -22,6 +22,7 @@ SQL_LIST_CONTACTS = load_sql("contacts/list.sql")
 SQL_COUNT_CONTACTS = load_sql("contacts/count.sql")
 SQL_GET_CONTACT_BY_ID = load_sql("contacts/get_by_id.sql")
 SQL_UPDATE_CONTACT = load_sql("contacts/update.sql")
+SQL_UPDATE_CONTACT_FROM_FORM = load_sql("contacts/update_from_form.sql")
 SQL_DELETE_CONTACT = load_sql("contacts/delete.sql")
 SQL_LIST_INTERACTIONS_BY_CONTACT = load_sql("interactions/list_by_contact.sql")
 SQL_COUNT_INTERACTIONS = load_sql("contacts/count_interactions.sql")
@@ -193,7 +194,7 @@ async def update_contact(
     latest_news: str | None,
 ) -> Contact | None:
     """
-    Update a contact's details.
+    Update a contact's details (for API - uses COALESCE for partial updates).
 
     Returns None if contact not found or doesn't belong to user.
     """
@@ -223,6 +224,52 @@ async def update_contact(
     )
 
     logger.info("contact_updated", contact_id=str(contact_id), user_id=str(user_id))
+
+    return contact
+
+
+async def update_contact_from_form(
+    conn: asyncpg.Connection,
+    contact_id: UUID,
+    user_id: UUID,
+    first_name: str,
+    last_name: str,
+    birthday: date | None,
+    latest_news: str,
+) -> Contact | None:
+    """
+    Update a contact from UI form submission.
+
+    Unlike the API update, this always updates all fields and treats empty strings as NULL for optional fields.
+
+    Returns None if contact not found or doesn't belong to user.
+    """
+    row = await conn.fetchrow(
+        SQL_UPDATE_CONTACT_FROM_FORM,
+        contact_id,
+        user_id,
+        first_name,
+        last_name,
+        birthday,
+        latest_news,
+    )
+
+    if row is None:
+        logger.warning(
+            "contact_not_found_for_update", contact_id=str(contact_id), user_id=str(user_id)
+        )
+        return None
+
+    contact = Contact(
+        id=row["id"],
+        user_id=user_id,
+        first_name=row["first_name"],
+        last_name=row["last_name"],
+        birthday=row["birthday"],
+        latest_news=row["latest_news"],
+    )
+
+    logger.info("contact_updated_from_form", contact_id=str(contact_id), user_id=str(user_id))
 
     return contact
 
