@@ -1,0 +1,14 @@
+<li class="relationship-item" id="relationship-{{ member.id }}">
+    <div class="relationship-content">
+        <a href="/contacts/{{ member.family_contact_id }}" class="relationship-name">
+            {{ member.first_name }}{% if member.last_name %} {{ member.last_name }}{% endif %}
+        </a>
+        <span class="relationship-type">({{ member.relationship }})</span>
+    </div>
+    <div class="relationship-actions">
+        <button class="btn-icon" hx-get="/ui/relationships/{{ member.id }}/edit"
+            hx-target="#relationship-{{ member.id }}" hx-swap="outerHTML" title="Edit relationship">[edit]</button>
+        <button class="btn-icon" hx-delete="/ui/relationships/{{ member.id }}" hx-target="#relationship-{{ member.id }}"
+            hx-swap="outerHTML" hx-confirm="Remove this relationship?" title="Remove relationship">[delete]</button>
+    </div>
+</li>

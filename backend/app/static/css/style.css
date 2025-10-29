@@ -545,43 +545,43 @@ main {
     border-color: var(--accent-color);
 }
 
-/* Family members */
-.family-section .section-header {
+/* Relationships */
+.relationship-section .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
 }
 
-.family-section h3 {
+.relationship-section h3 {
     margin: 0;
 }
 
-.family-form {
+.relationship-form {
     background-color: var(--hover-color);
     padding: 12px;
     margin-bottom: 12px;
     border: 1px solid var(--border-color);
 }
 
-.family-form .form-row {
+.relationship-form .form-row {
     display: flex;
     gap: 12px;
     margin-bottom: 8px;
 }
 
-.family-form .form-group {
+.relationship-form .form-group {
     flex: 1;
 }
 
-.family-form label {
+.relationship-form label {
     display: block;
     margin-bottom: 4px;
     font-size: 9pt;
     color: var(--accent-color);
 }
 
-.family-form select {
+.relationship-form select {
     width: 100%;
     padding: 4px;
     font-family: var(--font-sans);
@@ -590,69 +590,66 @@ main {
     background-color: white;
 }
 
-.family-form .form-actions {
+.relationship-form .form-actions {
     display: flex;
     gap: 6px;
     margin-top: 8px;
 }
 
-.family-list {
+.relationship-list {
     list-style: none;
+    padding: 0;
+    margin: 0;
     background-color: white;
     border: 1px solid var(--border-color);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
-.family-item {
+.relationship-item {
     padding: 14px 12px;
     font-size: 9pt;
-    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-.family-item:last-child {
-    border-bottom: none;
-}
-
-.family-member-content {
+.relationship-content {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.family-name {
+.relationship-name {
     color: var(--text-color);
     text-decoration: none;
 }
 
-.family-name:hover {
+.relationship-name:hover {
     color: var(--accent-color);
     text-decoration: underline;
 }
 
-.family-relationship {
+.relationship-type {
     color: var(--meta-color);
     font-size: 8pt;
 }
 
-.family-actions {
+.relationship-actions {
     display: flex;
     gap: 4px;
 }
 
-.family-item-edit {
+.relationship-item-edit {
     background-color: var(--hover-color);
     flex-direction: column;
     align-items: stretch;
 }
 
-.family-item-edit form {
+.relationship-item-edit form {
     width: 100%;
 }
 
-.family-edit-content {
+.relationship-edit-content {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -887,14 +884,14 @@ main {
     border: 1px solid var(--border-color);
 }
 
-.family-member-item {
+.relationship-member-item {
     padding: 8px;
     margin-bottom: 8px;
     background-color: var(--bg-color);
     border: 1px solid var(--border-color);
 }
 
-.family-member-item:last-child {
+.relationship-member-item:last-child {
     margin-bottom: 0;
 }
 

@@ -11,8 +11,8 @@ from backend.app.config import settings
 from backend.app.models import (
     AnalyzeInteractionResponse,
     ExtractedContact,
-    ExtractedFamilyMember,
     ExtractedInteraction,
+    ExtractedRelationship,
 )
 
 logger = structlog.get_logger(__name__)
@@ -25,7 +25,7 @@ class ExtractionResult(BaseModel):
 
     contact: ExtractedContact
     interaction: ExtractedInteraction
-    family_members: list[ExtractedFamilyMember] = Field(default_factory=list)
+    relationships: list[ExtractedRelationship] = Field(default_factory=list)
 
 
 def load_prompt(filename: str) -> str:
@@ -87,14 +87,14 @@ async def analyze_interaction(text: str) -> AnalyzeInteractionResponse:
     result = AnalyzeInteractionResponse(
         contact=extracted.contact,
         interaction=extracted.interaction,
-        family_members=extracted.family_members,
+        relationships=extracted.relationships,
         raw_text=text,
     )
 
     logger.info(
         "interaction_analyzed",
         contact_name=f"{result.contact.first_name} {result.contact.last_name}",
-        family_members_count=len(result.family_members),
+        relationships_count=len(result.relationships),
     )
 
     return result

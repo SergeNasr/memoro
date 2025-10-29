@@ -1,0 +1,19 @@
+<div class="relationship-section" id="relationships-{{ contact.id }}">
+    <div class="section-header">
+        <h3>Relationships</h3>
+        <button class="btn-icon" hx-get="/ui/contacts/{{ contact.id }}/relationships/new"
+            hx-target="#relationship-form-container" hx-swap="innerHTML" title="Add relationship">[add]</button>
+    </div>
+
+    <div id="relationship-form-container"></div>
+
+    {% if relationships %}
+    <ul class="relationship-list" id="relationship-list-{{ contact.id }}">
+        {% for member in relationships %}
+        {% include 'components/relationship_item.html' %}
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty-state">No relationships added yet.</p>
+    {% endif %}
+</div>

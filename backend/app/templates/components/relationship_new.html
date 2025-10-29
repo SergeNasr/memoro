@@ -1,10 +1,10 @@
-<div class="family-form">
-    <form hx-post="/ui/contacts/{{ contact.id }}/family-members" hx-target="#family-members-{{ contact.id }}"
+<div class="relationship-form">
+    <form hx-post="/ui/contacts/{{ contact.id }}/relationships" hx-target="#relationships-{{ contact.id }}"
         hx-swap="outerHTML">
         <div class="form-row">
             <div class="form-group">
-                <label for="family_contact_id">Select Contact:</label>
-                <select id="family_contact_id" name="family_contact_id" required>
+                <label for="related_contact_id">Select Contact:</label>
+                <select id="related_contact_id" name="related_contact_id" required>
                     <option value="">-- Select Contact --</option>
                     {% for c in available_contacts %}
                     <option value="{{ c.id }}">{{ c.first_name }}{% if c.last_name %} {{ c.last_name }}{% endif %}
@@ -27,7 +27,7 @@
         <div class="form-actions">
             <button type="submit" class="btn-primary">Add</button>
             <button type="button" class="btn-secondary"
-                onclick="document.getElementById('family-form-container').innerHTML = ''">
+                onclick="document.getElementById('relationship-form-container').innerHTML = ''">
                 Cancel
             </button>
         </div>

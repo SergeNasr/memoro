@@ -1,0 +1,29 @@
+<li class="relationship-item relationship-item-edit" id="relationship-{{ relationship.id }}">
+    <form hx-patch="/ui/relationships/{{ relationship.id }}" hx-target="#relationship-{{ relationship.id }}"
+        hx-swap="outerHTML">
+        <div class="relationship-edit-content">
+            <span class="relationship-name">{{ relationship.first_name }}{% if relationship.last_name %} {{
+                relationship.last_name }}{% endif %}</span>
+            <div class="form-group-inline">
+                <label for="relationship-{{ relationship.id }}">Relationship:</label>
+                <select id="relationship-{{ relationship.id }}" name="relationship" required>
+                    {% for rel in common_relationships %}
+                    <option value="{{ rel }}" {% if rel==relationship.relationship %}selected{% endif %}>
+                        {{ rel }}
+                    </option>
+                    {% endfor %}
+                    {% if relationship.relationship not in common_relationships %}
+                    <option value="{{ relationship.relationship }}" selected>{{ relationship.relationship }}</option>
+                    {% endif %}
+                    <option value="">-- Custom --</option>
+                </select>
+            </div>
+        </div>
+        <div class="relationship-actions">
+            <button type="submit" class="btn-primary btn-sm">Save</button>
+            <button type="button" class="btn-secondary btn-sm" onclick="window.location.reload()">
+                Cancel
+            </button>
+        </div>
+    </form>
+</li>

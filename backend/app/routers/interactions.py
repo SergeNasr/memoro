@@ -54,28 +54,28 @@ async def confirm_interaction_endpoint(
     This endpoint:
     - Creates or finds existing contact
     - Creates interaction record with notes, location, date
-    - Links family members (creates contacts for them too)
+    - Links relationships (creates contacts for them too)
     - Updates contact's latest_news field
 
     Returns IDs of created/found entities.
     """
-    family_members = (
+    relationships = (
         [
             {
-                "first_name": fm.first_name,
-                "last_name": fm.last_name,
-                "relationship": fm.relationship,
+                "first_name": rel.first_name,
+                "last_name": rel.last_name,
+                "relationship": rel.relationship,
             }
-            for fm in request.family_members
+            for rel in request.relationships
         ]
-        if request.family_members
+        if request.relationships
         else None
     )
 
     (
         contact_id,
         interaction_id,
-        family_count,
+        relationship_count,
     ) = await interaction_service.confirm_and_persist_interaction(
         conn,
         user_id,
@@ -85,13 +85,13 @@ async def confirm_interaction_endpoint(
         interaction_date=request.interaction.interaction_date,
         notes=request.interaction.notes,
         location=request.interaction.location,
-        family_members=family_members,
+        relationships=relationships,
     )
 
     return ConfirmInteractionResponse(
         contact_id=contact_id,
         interaction_id=interaction_id,
-        family_members_linked=family_count,
+        relationships_linked=relationship_count,
     )
 
 

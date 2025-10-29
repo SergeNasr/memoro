@@ -484,11 +484,11 @@ class TestGetContactSummary:
         assert data["recent_interactions"][0]["notes"] == "Coffee meeting"
         assert data["recent_interactions"][1]["id"] == str(interaction2_id)
 
-        # Verify family members
-        assert len(data["family_members"]) == 1
-        assert data["family_members"][0]["family_contact_id"] == str(family_member_id)
-        assert data["family_members"][0]["relationship"] == "spouse"
-        assert data["family_members"][0]["first_name"] == "Bob"
+        # Verify relationships
+        assert len(data["relationships"]) == 1
+        assert data["relationships"][0]["family_contact_id"] == str(family_member_id)
+        assert data["relationships"][0]["relationship"] == "spouse"
+        assert data["relationships"][0]["first_name"] == "Bob"
 
     @pytest.mark.asyncio
     async def test_get_contact_summary_no_interactions(
@@ -530,7 +530,7 @@ class TestGetContactSummary:
         assert data["total_interactions"] == 0
         assert data["last_interaction_date"] is None
         assert len(data["recent_interactions"]) == 0
-        assert len(data["family_members"]) == 0
+        assert len(data["relationships"]) == 0
 
     @pytest.mark.asyncio
     async def test_get_contact_summary_no_family(self, client: AsyncClient, mock_db_connection):
@@ -579,7 +579,7 @@ class TestGetContactSummary:
         assert data["contact"]["first_name"] == "Diana"
         assert data["total_interactions"] == 3
         assert len(data["recent_interactions"]) == 1
-        assert len(data["family_members"]) == 0
+        assert len(data["relationships"]) == 0
 
     @pytest.mark.asyncio
     async def test_get_contact_summary_not_found(self, client: AsyncClient, mock_db_connection):
