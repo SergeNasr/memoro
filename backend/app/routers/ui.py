@@ -5,8 +5,8 @@ from uuid import UUID
 
 import asyncpg
 import structlog
-from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from backend.app.constants import TemplateConstants
@@ -14,6 +14,7 @@ from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.models import SearchType
 from backend.app.services import contacts as contact_service
 from backend.app.services import interactions as interaction_service
+from backend.app.services import llm as llm_service
 from backend.app.services import relationships as relationship_service
 from backend.app.services import search as search_service
 
@@ -153,6 +154,24 @@ async def search_ui(
             "constants": TemplateConstants,
         },
     )
+
+
+@router.post("/ui/interactions/transcribe")
+async def transcribe_audio_ui(
+    audio: UploadFile = File(...),
+):
+    """
+    Transcribe audio file using OpenAI Whisper API.
+    Returns transcribed text as JSON.
+    """
+    audio_bytes = await audio.read()
+    filename = audio.filename or "audio.webm"
+
+    text = await llm_service.transcribe_audio(audio_bytes, filename)
+
+    logger.info("audio_transcribed_via_ui", filename=filename, text_length=len(text))
+
+    return JSONResponse(content={"text": text})
 
 
 @router.post("/ui/interactions/analyze", response_class=HTMLResponse)

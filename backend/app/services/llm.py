@@ -126,3 +126,55 @@ async def generate_embedding(text: str) -> list[float]:
     )
 
     return embedding
+
+
+async def transcribe_audio(audio_file: bytes, filename: str) -> str:
+    """
+    Transcribe audio file using OpenAI Whisper API.
+
+    Args:
+        audio_file: Audio file bytes
+        filename: Original filename (used to determine format)
+
+    Returns:
+        Transcribed text
+
+    Raises:
+        ValueError: If audio format is not supported
+        Exception: If transcription fails
+    """
+    logger.info("transcribing_audio", filename=filename, file_size=len(audio_file))
+
+    # Whisper supports: mp3, mp4, mpeg, mpga, m4a, wav, webm
+    supported_formats = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"}
+    file_ext = filename.lower().split(".")[-1] if "." in filename else ""
+
+    if f".{file_ext}" not in supported_formats:
+        raise ValueError(f"Unsupported audio format: {file_ext}. Supported: {supported_formats}")
+
+    # OpenAI API accepts file-like objects
+    from io import BytesIO
+
+    audio_buffer = BytesIO(audio_file)
+    audio_buffer.seek(0)  # Ensure we're at the start
+
+    # Map file extensions to MIME types
+    mime_types = {
+        "mp3": "audio/mpeg",
+        "mp4": "audio/mp4",
+        "mpeg": "audio/mpeg",
+        "mpga": "audio/mpeg",
+        "m4a": "audio/mp4",
+        "wav": "audio/wav",
+        "webm": "audio/webm",
+    }
+    mime_type = mime_types.get(file_ext, f"audio/{file_ext}")
+
+    transcription = await client.audio.transcriptions.create(
+        model="whisper-1",
+        file=("audio." + file_ext, audio_buffer, mime_type),
+    )
+
+    text = transcription.text
+    logger.info("audio_transcribed", text_length=len(text))
+    return text
