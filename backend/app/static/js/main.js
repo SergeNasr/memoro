@@ -2,12 +2,14 @@
 import { Modal } from './modal.js';
 import { Toast } from './toast.js';
 import { HtmxHandlers } from './htmx-handlers.js';
+import { RecordingManager } from './recording.js';
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     const toast = new Toast();
     const modal = new Modal();
     new HtmxHandlers(toast);
+    new RecordingManager(toast);
 
     // Wait for tinykeys to be available
     const initShortcuts = () => {

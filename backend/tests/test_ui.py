@@ -1,7 +1,7 @@
 """Tests for UI endpoints."""
 
 from datetime import date
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -827,3 +827,51 @@ class TestDeleteContactUI:
 
         assert response.status_code == 500
         assert b"Failed to delete contact" in response.content
+
+
+class TestTranscribeAudioUI:
+    """Tests for POST /ui/interactions/transcribe endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_transcribe_audio_success(self, client: AsyncClient, mock_openai_client):
+        """Test successful audio transcription."""
+        mock_transcription = MagicMock()
+        mock_transcription.text = "Had coffee with Sarah at Starbucks today"
+
+        mock_openai_client.audio.transcriptions.create = AsyncMock(return_value=mock_transcription)
+
+        # Create a fake audio file
+        audio_content = b"fake audio data"
+        files = {"audio": ("recording.webm", audio_content, "audio/webm")}
+
+        response = await client.post("/ui/interactions/transcribe", files=files)
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/json"
+        data = response.json()
+        assert data["text"] == "Had coffee with Sarah at Starbucks today"
+        mock_openai_client.audio.transcriptions.create.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_transcribe_audio_with_filename(self, client: AsyncClient, mock_openai_client):
+        """Test transcription with custom filename."""
+        mock_transcription = MagicMock()
+        mock_transcription.text = "Meeting notes from the call"
+
+        mock_openai_client.audio.transcriptions.create = AsyncMock(return_value=mock_transcription)
+
+        audio_content = b"fake audio data"
+        files = {"audio": ("my_recording.mp3", audio_content, "audio/mpeg")}
+
+        response = await client.post("/ui/interactions/transcribe", files=files)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["text"] == "Meeting notes from the call"
+
+    @pytest.mark.asyncio
+    async def test_transcribe_audio_missing_file(self, client: AsyncClient):
+        """Test transcription endpoint requires audio file."""
+        response = await client.post("/ui/interactions/transcribe", data={})
+
+        assert response.status_code == 422
