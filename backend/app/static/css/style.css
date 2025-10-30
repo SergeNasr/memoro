@@ -376,6 +376,26 @@ main {
     background-color: var(--accent-hover);
 }
 
+.fab.recording {
+    background-color: #dc3545;
+    animation: recording-pulse 1.5s ease-in-out infinite;
+}
+
+.fab.recording:hover {
+    background-color: #c82333;
+}
+
+@keyframes recording-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 4px 16px rgba(220, 53, 69, 0.6);
+    }
+}
+
 /* Modal */
 .modal-overlay {
     display: none;
@@ -514,6 +534,10 @@ main {
 
 .toast.error {
     background-color: #cc0000;
+}
+
+.toast.success {
+    background-color: #006600;
 }
 
 /* Pagination */
