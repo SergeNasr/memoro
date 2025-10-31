@@ -14,10 +14,6 @@ class Settings(BaseSettings):
     # OpenAI API
     openai_api_key: str
 
-    # Google OAuth
-    google_client_id: str
-    google_client_secret: str
-
     # Security
     secret_key: str
 
