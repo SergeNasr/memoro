@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logging in...</title>
+    <style>
+        body {
+            font-family: monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #edeae3;
+            color: #4a4a46;
+        }
+    </style>
+</head>
+<body>
+    <p>Logging you in...</p>
+    <script>
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+
+        if (accessToken) {
+            window.location.href = `/auth/callback?access_token=${encodeURIComponent(accessToken)}`;
+        } else {
+            window.location.href = '/auth/login?error=no_token';
+        }
+    </script>
+</body>
+</html>

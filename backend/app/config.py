@@ -14,10 +14,6 @@ class Settings(BaseSettings):
     # OpenAI API
     openai_api_key: str
 
-    # Google OAuth
-    google_client_id: str
-    google_client_secret: str
-
     # Security
     secret_key: str
 
@@ -26,6 +22,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     host: str = "0.0.0.0"
     port: int = 8000
+
+    # Supabase
+    supabase_url: str
+    supabase_secret_key: str
 
 
 # Global settings instance
