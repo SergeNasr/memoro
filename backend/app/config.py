@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
+    # Supabase
+    supabase_url: str
+    supabase_secret_key: str
+
 
 # Global settings instance
 settings = Settings()
