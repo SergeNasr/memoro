@@ -372,6 +372,17 @@ main {
     background-color: var(--accent-hover);
 }
 
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
 .btn-small {
     padding: 3px 8px;
     font-size: 8pt;

@@ -26,8 +26,8 @@
 
         <div class="form-actions">
             <button type="submit" class="btn-primary">Add</button>
-            <button type="button" class="btn-secondary"
-                onclick="document.getElementById('relationship-form-container').innerHTML = ''">
+            <button type="button" class="btn-secondary" hx-get="/ui/contacts/{{ contact.id }}/relationships/cancel"
+                hx-target="#relationship-form-container" hx-swap="innerHTML">
                 Cancel
             </button>
         </div>

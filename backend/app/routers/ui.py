@@ -753,6 +753,51 @@ async def update_relationship_ui(
     )
 
 
+@router.get("/ui/relationships/{relationship_id}", response_class=HTMLResponse)
+async def get_relationship_item(
+    request: Request,
+    relationship_id: UUID,
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    conn: asyncpg.Connection = Depends(get_db_dependency),
+):
+    """
+    Returns relationship item view (for canceling edit).
+    """
+    relationship = await relationship_service.get_relationship_by_id(conn, relationship_id, user_id)
+
+    if relationship is None:
+        return HTMLResponse(content="<div>Relationship not found</div>", status_code=404)
+
+    # Get relationship details
+    relationships = await relationship_service.get_relationships_with_details(
+        conn, relationship.contact_id, user_id
+    )
+
+    relationship_details = next((r for r in relationships if r.id == relationship_id), None)
+
+    if relationship_details is None:
+        return HTMLResponse(content="<div>Relationship not found</div>", status_code=404)
+
+    return templates.TemplateResponse(
+        request,
+        "components/relationship_item.html",
+        {
+            "member": relationship_details,
+        },
+    )
+
+
+@router.get("/ui/contacts/{contact_id}/relationships/cancel", response_class=HTMLResponse)
+async def cancel_relationship_form(
+    request: Request,
+    contact_id: UUID,
+):
+    """
+    Cancel relationship form - returns empty content to clear the form container.
+    """
+    return HTMLResponse(content="", status_code=200)
+
+
 @router.delete("/ui/relationships/{relationship_id}", response_class=HTMLResponse)
 async def delete_relationship_ui(
     request: Request,

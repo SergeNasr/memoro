@@ -21,7 +21,8 @@
         </div>
         <div class="relationship-actions">
             <button type="submit" class="btn-primary btn-sm">Save</button>
-            <button type="button" class="btn-secondary btn-sm" onclick="window.location.reload()">
+            <button type="button" class="btn-secondary btn-sm" hx-get="/ui/relationships/{{ relationship.id }}"
+                hx-target="#relationship-{{ relationship.id }}" hx-swap="outerHTML">
                 Cancel
             </button>
         </div>

@@ -9,6 +9,6 @@
         <button class="btn-icon" hx-get="/ui/relationships/{{ member.id }}/edit"
             hx-target="#relationship-{{ member.id }}" hx-swap="outerHTML" title="Edit relationship">[edit]</button>
         <button class="btn-icon" hx-delete="/ui/relationships/{{ member.id }}" hx-target="#relationship-{{ member.id }}"
-            hx-swap="outerHTML" hx-confirm="Remove this relationship?" title="Remove relationship">[delete]</button>
+            hx-swap="outerHTML" hx-confirm="Are you sure you want to remove this relationship?" title="Remove relationship">[delete]</button>
     </div>
 </li>
