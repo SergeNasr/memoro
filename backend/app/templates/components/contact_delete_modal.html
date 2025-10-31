@@ -23,7 +23,7 @@
         <div class="form-actions">
             <button type="button" class="btn" data-modal-close>Cancel</button>
             <button type="button" class="btn btn-danger" hx-delete="/ui/contacts/{{ contact.id }}"
-                style="background-color: #dc3545; color: white;">
+                hx-confirm="Are you sure you want to delete this contact? This action cannot be undone.">
                 Delete
             </button>
         </div>

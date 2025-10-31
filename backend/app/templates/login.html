@@ -12,8 +12,7 @@
         {% endif %}
     </div>
 
-    <form method="POST" action="/auth/login" class="login-form" hx-post="/auth/login" hx-target="#login-message"
-        hx-swap="innerHTML">
+    <form class="login-form" hx-post="/auth/login" hx-target="#login-message" hx-swap="innerHTML">
         <div class="form-group">
             <label for="email">Email</label>
             <input type="email" id="email" name="email" required autofocus placeholder="Enter your email" />

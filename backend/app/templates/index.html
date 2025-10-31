@@ -12,25 +12,6 @@
 <!-- Search results (initially hidden) -->
 <div id="search-results-container"></div>
 
-<!-- ASCII Art Loading Component -->
-<div id="search-loading" class="search-loading htmx-indicator" style="display: none;">
-    <div class="ascii-loader">
-        <pre>
-    🔍 Searching...
-   /|\
-  / | \
- /  |  \
-/___|___\
-    |
-    |
-    |
-        </pre>
-    </div>
-    <div class="loading-dots">
-        <span>.</span><span>.</span><span>.</span>
-    </div>
-</div>
-
 <!-- Contact list -->
 {% if contacts %}
 <div id="contacts-list-container">
@@ -54,19 +35,20 @@
     {% if total_pages > 1 %}
     <div class="pagination">
         {% if page > 1 %}
-        <a href="/?page={{ page - 1 }}">prev</a>
+        <a hx-get="/ui/contacts/list?page={{ page - 1 }}" hx-target="#contacts-list-container" hx-swap="innerHTML">prev</a>
         {% endif %}
 
         {% for p in range(1, total_pages + 1) %}
         {% if p == page %}
         <span class="current">{{ p }}</span>
         {% else %}
-        <a href="/?page={{ p }}">{{ p }}</a>
+        <a hx-get="/ui/contacts/list?page={{ p }}" hx-target="#contacts-list-container" hx-swap="innerHTML">{{ p }}</a>
         {% endif %}
         {% endfor %}
 
-        {% if page < total_pages %} <a href="/?page={{ page + 1 }}">next</a>
-            {% endif %}
+        {% if page < total_pages %}
+        <a hx-get="/ui/contacts/list?page={{ page + 1 }}" hx-target="#contacts-list-container" hx-swap="innerHTML">next</a>
+        {% endif %}
     </div>
     {% endif %}
 </div>

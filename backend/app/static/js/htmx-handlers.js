@@ -7,12 +7,6 @@ export class HtmxHandlers {
 
     init() {
         document.body.addEventListener('htmx:afterSwap', (evt) => {
-            this.handleSuccess(evt);
-        });
-
-        document.body.addEventListener('htmx:responseError', (evt) => {
-            this.handleError(evt);
-        });
 
         // Handle button disabling during requests
         document.body.addEventListener('htmx:beforeRequest', (evt) => {
@@ -24,16 +18,6 @@ export class HtmxHandlers {
         });
     }
 
-    handleSuccess(evt) {
-        const { xhr, target } = evt.detail;
-
-        if (xhr.status === 200 || xhr.status === 201) {
-            const message = target.getAttribute('data-success-message');
-            if (message) {
-                this.toast.show(message, 'info');
-            }
-        }
-    }
 
     handleError(evt) {
         let message = 'Something went wrong';
