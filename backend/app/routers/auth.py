@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from supabase import AuthApiError, Client
 
-from backend.app.auth import get_current_user, get_supabase_client
+from backend.app.auth import COOKIE_NAME, get_current_user, get_supabase_client
 from backend.app.config import settings
 
 logger = structlog.get_logger(__name__)
@@ -12,6 +12,18 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 templates = Jinja2Templates(directory="backend/app/templates")
+
+# Cookie configuration constants
+COOKIE_MAX_AGE = 60 * 60 * 24 * 7  # 7 days in seconds
+
+
+def get_cookie_kwargs() -> dict:
+    """Get standard cookie kwargs for security settings."""
+    return {
+        "httponly": True,
+        "secure": settings.environment != "development",
+        "samesite": "lax",
+    }
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -27,7 +39,7 @@ async def send_magic_link(
     supabase: Client = Depends(get_supabase_client),
 ):
     """Send magic link email via Supabase."""
-    callback_url = str(request.base_url).rstrip("/") + "/auth/callback"
+    callback_url = str(request.url_for("callback"))
 
     supabase.auth.sign_in_with_otp(
         {
@@ -43,7 +55,7 @@ async def send_magic_link(
     )
 
 
-@router.get("/callback")
+@router.get("/callback", name="callback")
 async def callback(
     request: Request,
     access_token: str | None = Query(None, alias="access_token"),
@@ -63,12 +75,10 @@ async def callback(
 
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(
-        key="supabase_access_token",
+        key=COOKIE_NAME,
         value=access_token,
-        httponly=True,
-        secure=settings.environment != "development",
-        samesite="lax",
-        max_age=60 * 60 * 24 * 7,
+        max_age=int(COOKIE_MAX_AGE),
+        **get_cookie_kwargs(),
     )
 
     return response
@@ -78,13 +88,7 @@ async def callback(
 async def logout(request: Request):
     """Clear session cookie and redirect to login."""
     response = RedirectResponse(url="/auth/login", status_code=302)
-
-    response.delete_cookie(
-        key="supabase_access_token",
-        httponly=True,
-        secure=settings.environment != "development",
-        samesite="lax",
-    )
+    response.delete_cookie(key=COOKIE_NAME, **get_cookie_kwargs())
 
     return response
 

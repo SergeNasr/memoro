@@ -8,6 +8,9 @@ from backend.app.config import settings
 
 logger = structlog.get_logger(__name__)
 
+# Cookie configuration
+COOKIE_NAME = "supabase_access_token"
+
 
 def get_supabase_client() -> Client:
     """Get the Supabase client."""
@@ -15,7 +18,7 @@ def get_supabase_client() -> Client:
 
 
 async def get_current_user(request: Request) -> UUID:
-    token = request.cookies.get("supabase_access_token")
+    token = request.cookies.get(COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
