@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Memoro{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <h2>Login</h2>
+
+    <div id="login-message">
+        {% if message %}
+        <div class="message">{{ message }}</div>
+        {% endif %}
+    </div>
+
+    <form method="POST" action="/auth/login" class="login-form" hx-post="/auth/login" hx-target="#login-message"
+        hx-swap="innerHTML">
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required autofocus placeholder="Enter your email" />
+        </div>
+
+        <button type="submit" class="btn-primary">Send Magic Link</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Logging in...</title>
+    <style>
+        body {
+            font-family: monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            color: #d4af37;
+        }
+    </style>
+</head>
+
+<body>
+    <p>Logging you in...</p>
+    <script>
+        // Extract tokens from hash fragment
+        const hash = window.location.hash.substring(1); // Remove the #
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+
+        if (accessToken) {
+            // Redirect to server endpoint with token as query param
+            window.location.href = `/auth/callback?access_token=${encodeURIComponent(accessToken)}`;
+        } else {
+            // No token found, redirect to login
+            window.location.href = '/auth/login?error=no_token';
+        }
+    </script>
+</body>
+
+</html>
