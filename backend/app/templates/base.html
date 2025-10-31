@@ -16,9 +16,11 @@
 
 <body>
     <header>
-        <h1><a href="/" style="text-decoration: none;">Memoro</a></h1>
+        <h1><a href="/">Memoro</a></h1>
         <nav>
-            <a href="#" id="logout">logout</a>
+            <form method="POST" action="/auth/logout">
+                <button type="submit">logout</button>
+            </form>
         </nav>
     </header>
 
