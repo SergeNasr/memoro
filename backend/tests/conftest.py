@@ -1,12 +1,13 @@
 """Pytest configuration and fixtures."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 import asyncpg
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from backend.app.auth import get_supabase_client
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.main import app
 
@@ -147,3 +148,41 @@ def mock_db_transaction():
     yield mock_conn
 
     # Clean up is handled by client fixture
+
+
+def make_mock_user_response(user_id: str):
+    """Helper to create mock Supabase user response."""
+    mock_user = MagicMock()
+    mock_user.id = user_id
+    mock_user_response = MagicMock()
+    mock_user_response.user = mock_user
+    return mock_user_response
+
+
+@pytest.fixture
+def mock_supabase_client():
+    """
+    Mock Supabase client for testing.
+
+    Automatically overrides get_supabase_client dependency and patches
+    the function call in auth.py for routes that use dependency injection
+    and functions that call it directly.
+
+    Usage:
+        def test_something(client, mock_supabase_client):
+            # Setup mock behavior
+            mock_supabase_client.auth.get_user.return_value = make_mock_user_response("...")
+            # Test will use the mocked client
+            response = await client.post("/auth/login", ...)
+    """
+    mock_client = MagicMock()
+
+    # Override dependency for routes using Depends(get_supabase_client)
+    app.dependency_overrides[get_supabase_client] = lambda: mock_client
+
+    # Patch for functions calling get_supabase_client() directly (like get_current_user)
+    with patch("backend.app.auth.get_supabase_client", return_value=mock_client):
+        yield mock_client
+
+    # Clean up dependency override
+    app.dependency_overrides.pop(get_supabase_client, None)
