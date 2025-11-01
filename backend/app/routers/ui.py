@@ -111,6 +111,7 @@ async def get_contact_list_fragment(
             "page": page,
             "page_size": page_size,
             "total_pages": total_pages,
+            "constants": TemplateConstants,
         },
     )
 
