@@ -29,6 +29,8 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - ✏️ **GET /ui/interactions/{id}/edit** - Get inline edit form for interaction
 - ✏️ **PATCH /ui/interactions/{id}** - Update interaction and return updated fragment
 - 🗑️ **DELETE /ui/interactions/{id}** - Delete interaction and return updated list
+- 👨‍👩‍👧 **GET /ui/relationships/{id}** - Get relationship item view (for canceling edit)
+- 🚫 **GET /ui/contacts/{id}/relationships/cancel** - Cancel new relationship form
 
 **Search Endpoints:**
 - 🔍 **POST /api/search** - Unified search (semantic, fuzzy, term) across contacts and interactions
@@ -59,8 +61,9 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - 📝 Structured logging with colored console output
 - 🔄 Alembic migrations for schema management
 - 🚀 CI/CD with GitHub Actions
-- 🎨 Retro-styled responsive UI with HTMX
+- 🎨 Retro-styled responsive UI with HTMX and consistent delete confirmations
 - ⌨️ Keyboard shortcuts (cmd/ctrl+k for search, cmd/ctrl+. for new interaction)
+- 🧹 Clean HTMX implementation with minimal inline JavaScript
 
 ### 🚧 Coming Soon
 - 🔐 Google OAuth authentication (currently uses placeholder user_id)
@@ -188,13 +191,20 @@ memoro/
 │   │   │   ├── index.html          # Homepage with contact list
 │   │   │   ├── contact_profile.html # Contact detail page
 │   │   │   └── components/         # HTMX fragments
-│   │   │       ├── contact_list.html
-│   │   │       ├── contact_delete_modal.html # Delete confirmation modal
-│   │   │       ├── search_results.html
-│   │   │       ├── modal.html
-│   │   │       ├── interaction_edit.html # Inline edit form
-│   │   │       ├── interaction_list.html # Interaction list
-│   │   │       └── review_form.html      # LLM analysis review form
+│   │   │       ├── contact_list.html          # Contact list fragment
+│   │   │       ├── contact_delete_modal.html  # Delete confirmation modal
+│   │   │       ├── contact_edit.html          # Contact inline edit form
+│   │   │       ├── contact_header.html        # Contact header fragment
+│   │   │       ├── search_results.html        # Search results fragment
+│   │   │       ├── modal.html                 # Generic modal wrapper
+│   │   │       ├── interaction_edit.html      # Interaction inline edit form
+│   │   │       ├── interaction_list.html      # Interaction list fragment
+│   │   │       ├── relationship_edit.html     # Relationship inline edit form
+│   │   │       ├── relationship_item.html     # Relationship item view
+│   │   │       ├── relationship_list.html     # Relationship list fragment
+│   │   │       ├── relationship_new.html      # New relationship form
+│   │   │       ├── login_message.html         # Login prompt message
+│   │   │       └── review_form.html           # LLM analysis review form
 │   │   └── static/
 │   │       ├── css/
 │   │       │   └── style.css       # Retro dark/brown styling
@@ -273,6 +283,8 @@ memoro/
 - Progressive enhancement approach
 - Faster development without complex frontend builds
 - Great for CRUD applications
+- Declarative attributes (`hx-confirm`, `hx-swap`, etc.) replace inline JavaScript
+- Built-in support for cancel patterns via GET endpoints
 
 ### Why structlog?
 - Structured logging for better searchability
@@ -338,9 +350,11 @@ Memoro implements a unified search system with three modes:
 - **Fragment components**: Reusable HTML fragments in `templates/components/` for dynamic updates
 - **Constants management**: `constants.py` centralizes UI configuration (truncation lengths, pagination)
 - **Progressive enhancement**: Full pages for initial loads, HTMX for dynamic interactions
-- **Static assets**: Custom CSS with retro styling, minimal JavaScript for modals/toasts
+- **Static assets**: Custom CSS with retro styling (including `.btn-danger` for delete buttons), minimal JavaScript for modals/toasts
 - **Inline editing**: HTMX swapping for seamless edit/view transitions without page reloads
+- **Cancel endpoints**: GET endpoints return empty content or item views to cancel form editing
 - **Form-based UI**: UI endpoints accept form data directly, avoiding JSON parsing overhead
+- **Consistent UX**: `hx-confirm` attribute on all delete buttons for confirmation prompts
 - **Keyboard shortcuts**: Using tinykeys library for cross-platform shortcuts (cmd/ctrl+k for search, cmd/ctrl+. for new interaction)
 
 ### Prompt Management Pattern
@@ -441,6 +455,8 @@ Service functions accept primitive parameters instead of Pydantic models:
 - ✅ GET /ui/interactions/{id}/edit - Edit form rendering
 - ✅ PATCH /ui/interactions/{id} - Inline editing
 - ✅ DELETE /ui/interactions/{id} - Delete and refresh list
+
+*Note:* New cancel endpoints (GET /ui/relationships/{id}, GET /ui/contacts/{id}/relationships/cancel) added in recent cleanup but not yet covered by tests.
 
 *Infrastructure:*
 - ✅ Health check endpoint
