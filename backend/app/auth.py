@@ -32,3 +32,43 @@ async def get_current_user(request: Request) -> UUID:
         raise HTTPException(status_code=401, detail="Unauthorized") from e
 
     return UUID(user.user.id)
+
+
+async def get_authenticated_user(request: Request) -> UUID:
+    """
+    FastAPI dependency for API endpoints that require authentication.
+    Returns user_id if authenticated, raises HTTPException(401) otherwise.
+    """
+    return await get_current_user(request)
+
+
+class AuthenticationRedirect(HTTPException):
+    """Custom exception for authentication redirects in UI endpoints."""
+
+    def __init__(self, redirect_url: str = "/auth/login"):
+        super().__init__(status_code=401, detail="Unauthorized")
+        self.redirect_url = redirect_url
+
+
+async def require_auth(request: Request) -> UUID:
+    """
+    FastAPI dependency for UI endpoints that require authentication.
+    Returns user_id if authenticated, raises AuthenticationRedirect otherwise.
+    """
+    try:
+        return await get_current_user(request)
+    except HTTPException as e:
+        # Raise custom exception that will be handled by exception handler
+        raise AuthenticationRedirect("/auth/login") from e
+
+
+async def get_optional_user(request: Request) -> UUID | None:
+    """
+    Safely check if user is authenticated without raising exceptions.
+    Returns user_id if authenticated, None otherwise.
+    Used for template context to conditionally show UI elements.
+    """
+    try:
+        return await get_current_user(request)
+    except HTTPException:
+        return None

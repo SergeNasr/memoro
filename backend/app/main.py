@@ -9,9 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from httpx import HTTPError
 
+from backend.app.auth import AuthenticationRedirect
 from backend.app.config import settings
 from backend.app.exceptions import (
     MemoroException,
+    authentication_redirect_handler,
     general_exception_handler,
     http_error_handler,
     memoro_exception_handler,
@@ -81,6 +83,7 @@ app.add_middleware(
 )
 
 # Register exception handlers
+app.add_exception_handler(AuthenticationRedirect, authentication_redirect_handler)
 app.add_exception_handler(MemoroException, memoro_exception_handler)
 app.add_exception_handler(HTTPError, http_error_handler)
 app.add_exception_handler(Exception, general_exception_handler)

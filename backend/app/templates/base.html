@@ -18,9 +18,11 @@
     <header>
         <h1><a href="/">Memoro</a></h1>
         <nav>
+            {% if is_authenticated %}
             <form method="POST" action="/auth/logout">
                 <button type="submit">logout</button>
             </form>
+            {% endif %}
         </nav>
     </header>
 

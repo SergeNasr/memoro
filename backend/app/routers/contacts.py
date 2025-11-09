@@ -6,6 +6,7 @@ import asyncpg
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from backend.app.auth import get_authenticated_user
 from backend.app.db import get_db_dependency
 from backend.app.models import (
     Contact,
@@ -25,8 +26,7 @@ router = APIRouter(prefix="/api/contacts", tags=["contacts"])
 async def list_contacts(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Number of contacts per page"),
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = Depends(get_authenticated_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> ContactListResponse:
     """
@@ -50,8 +50,7 @@ async def list_contacts(
 @router.get("/{contact_id}", response_model=Contact, status_code=status.HTTP_200_OK)
 async def get_contact(
     contact_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = Depends(get_authenticated_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> Contact:
     """
@@ -71,8 +70,7 @@ async def get_contact(
 @router.get("/{contact_id}/summary", response_model=ContactSummary, status_code=status.HTTP_200_OK)
 async def get_contact_summary(
     contact_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = Depends(get_authenticated_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> ContactSummary:
     """
@@ -99,8 +97,7 @@ async def get_contact_summary(
 async def update_contact(
     contact_id: UUID,
     contact_update: ContactUpdate,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = Depends(get_authenticated_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> Contact:
     """
@@ -128,8 +125,7 @@ async def update_contact(
 @router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_contact(
     contact_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = Depends(get_authenticated_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> None:
     """
@@ -149,8 +145,7 @@ async def delete_contact(
 )
 async def list_contact_interactions(
     contact_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = Depends(get_authenticated_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> list[Interaction]:
     """
