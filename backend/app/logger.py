@@ -66,17 +66,8 @@ def setup_logging(log_level: str = "INFO", environment: str = "development") -> 
         level=numeric_level,
     )
 
-    # Set log level for uvicorn loggers
-    logging.getLogger("uvicorn").setLevel(numeric_level)
-    logging.getLogger("uvicorn.access").setLevel(
-        logging.WARNING
-    )  # Silence access logs (we have our own)
-    logging.getLogger("uvicorn.error").setLevel(numeric_level)
-
-    # Silence noisy third-party loggers
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("openai").setLevel(logging.WARNING)
+    # Silence access logs (we have our own)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:

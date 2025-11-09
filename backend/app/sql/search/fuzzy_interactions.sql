@@ -5,8 +5,10 @@ SELECT
     i.interaction_date,
     i.notes,
     i.location,
-    c.first_name as contact_first_name,
-    c.last_name as contact_last_name,
+    c.first_name,
+    c.last_name,
+    c.birthday,
+    c.latest_news,
     GREATEST(
         SIMILARITY(i.notes, $2),
         COALESCE(SIMILARITY(i.location, $2), 0)

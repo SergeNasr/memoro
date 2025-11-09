@@ -5,8 +5,10 @@ SELECT
     i.interaction_date,
     i.notes,
     i.location,
-    c.first_name as contact_first_name,
-    c.last_name as contact_last_name,
+    c.first_name,
+    c.last_name,
+    c.birthday,
+    c.latest_news,
     1 - (i.embedding <=> $2::vector) as score
 FROM interaction i
 JOIN contact c ON i.contact_id = c.id

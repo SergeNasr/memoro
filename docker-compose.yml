@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U memoro"]
+      test: [ "CMD-SHELL", "pg_isready -U memoro" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -29,7 +29,7 @@ services:
       - ./.env:/app/.env:ro
     environment:
       - DATABASE_URL=postgresql://memoro:memoro@postgres:5432/memoro
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=INFO
       - ENVIRONMENT=development
     depends_on:
       postgres:

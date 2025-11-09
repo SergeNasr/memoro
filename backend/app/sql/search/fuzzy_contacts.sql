@@ -1,6 +1,6 @@
 -- Fuzzy search contacts by name
 SELECT
-    id,
+    id as contact_id,
     first_name,
     last_name,
     birthday,

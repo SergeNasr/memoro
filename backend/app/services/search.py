@@ -9,8 +9,6 @@ from backend.app.db import load_sql
 from backend.app.models import (
     SearchResult,
     SearchResultContact,
-    SearchResultInteraction,
-    SearchType,
 )
 from backend.app.services.llm import generate_embedding
 
@@ -31,189 +29,104 @@ HYBRID_SEARCH_WEIGHTS = {
 }
 
 
-def _add_or_update_score(
-    interaction_scores: dict[UUID, dict],
-    row: dict,
-    score_key: str,
-) -> None:
-    """Add or update score for an interaction in hybrid search."""
-    interaction_id = row["id"]
-    if interaction_id not in interaction_scores:
-        interaction_scores[interaction_id] = {
-            "row": row,
-            "fuzzy": 0.0,
-            "term": 0.0,
-            "semantic": 0.0,
-        }
-    interaction_scores[interaction_id][score_key] = float(row["score"])
-
-
-def _build_contact_result(row: dict) -> SearchResult:
-    """Build SearchResult for a contact row."""
-    return SearchResult(
-        result_type="contact",
-        contact=SearchResultContact(
-            id=row["id"],
-            first_name=row["first_name"],
-            last_name=row["last_name"],
-            birthday=row["birthday"],
-            latest_news=row["latest_news"],
-        ),
-        score=float(row["score"]),
-    )
-
-
-def _build_interaction_result(row: dict) -> SearchResult:
-    """Build SearchResult for an interaction row."""
-    return SearchResult(
-        result_type="interaction",
-        interaction=SearchResultInteraction(
-            id=row["id"],
-            contact_id=row["contact_id"],
-            interaction_date=row["interaction_date"],
-            notes=row["notes"],
-            location=row["location"],
-            contact_first_name=row["contact_first_name"],
-            contact_last_name=row["contact_last_name"],
-        ),
-        score=float(row["score"]),
-    )
-
-
-async def _search_contacts_and_interactions(
+async def _fetch_search_results_by_contact_id(
     conn: asyncpg.Connection,
-    user_id: UUID,
-    query: str,
-    limit: int,
-    contact_sql: str,
-    interaction_sql: str,
-) -> list[SearchResult]:
-    """Execute contact and interaction searches and return combined results."""
-    contact_rows = await conn.fetch(contact_sql, user_id, query, limit)
-    interaction_rows = await conn.fetch(interaction_sql, user_id, query, limit)
+    sql: str,
+    *args,
+) -> dict[UUID, asyncpg.Record]:
+    """
+    Execute a search query and return results as a dictionary mapping contact_id -> row.
 
-    results = [_build_contact_result(row) for row in contact_rows]
-    results.extend(_build_interaction_result(row) for row in interaction_rows)
-
-    return results
+    All search queries return contact_id, so this helper consolidates the pattern.
+    """
+    rows = await conn.fetch(sql, *args)
+    return {row["contact_id"]: row for row in rows}
 
 
 async def perform_search(
     conn: asyncpg.Connection,
     user_id: UUID,
     query: str,
-    search_type: SearchType,
     limit: int,
 ) -> list[SearchResult]:
     """
     Perform unified search across contacts and interactions.
 
-    Supports three search types:
-    - fuzzy: Trigram similarity matching on text fields
-    - term: Basic ILIKE pattern matching
-    - hybrid: Weighted combination of fuzzy, term, and semantic searches
+    Combines fuzzy, term, and semantic searches with weighted scoring:
+    - Fuzzy: 30% (applied to contacts and interactions)
+    - Term: 20% (applied to contacts and interactions)
+    - Semantic: 50% (applied to interactions only)
 
-    Returns combined results sorted by relevance score.
+    Returns combined results sorted by weighted relevance score, deduplicated by contact_id.
     """
-    search_handlers = {
-        SearchType.FUZZY: lambda: _search_contacts_and_interactions(
-            conn, user_id, query, limit, SQL_FUZZY_CONTACTS, SQL_FUZZY_INTERACTIONS
-        ),
-        SearchType.TERM: lambda: _search_contacts_and_interactions(
-            conn, user_id, query, limit, SQL_TERM_CONTACTS, SQL_TERM_INTERACTIONS
-        ),
-        SearchType.HYBRID: lambda: perform_hybrid_search(conn, user_id, query, limit),
-    }
-
-    handler = search_handlers.get(search_type)
-    if not handler:
-        logger.error("unknown_search_type", search_type=search_type)
-        raise ValueError(f"Unknown search type: {search_type}")
-
-    results = await handler()
-
-    results.sort(key=lambda r: r.score, reverse=True)
-    results = results[:limit]
-
-    logger.info(
-        "search_completed",
-        user_id=str(user_id),
-        query=query,
-        search_type=search_type,
-        total_results=len(results),
-    )
-
-    return results
-
-
-async def perform_hybrid_search(
-    conn: asyncpg.Connection,
-    user_id: UUID,
-    query: str,
-    limit: int,
-) -> list[SearchResult]:
-    """
-    Perform hybrid search combining fuzzy, term, and semantic searches on interactions.
-
-    Runs all three search types and merges results with weighted scoring:
-    - Semantic: 50%
-    - Fuzzy: 30%
-    - Term: 20%
-
-    Returns combined results sorted by weighted relevance score.
-    """
-    # Generate embedding for semantic search
     query_embedding = await generate_embedding(query)
     embedding_str = f"[{','.join(map(str, query_embedding))}]"
 
-    # Run all three searches sequentially (asyncpg doesn't support concurrent ops on same conn)
-    fuzzy_rows = await conn.fetch(SQL_FUZZY_INTERACTIONS, user_id, query, limit)
-    term_rows = await conn.fetch(SQL_TERM_INTERACTIONS, user_id, query, limit)
-    semantic_rows = await conn.fetch(SQL_SEMANTIC_INTERACTIONS, user_id, embedding_str, limit)
-
-    logger.debug(
-        "search_results_fetched",
-        fuzzy_count=len(fuzzy_rows),
-        term_count=len(term_rows),
-        semantic_count=len(semantic_rows),
+    # Execute all searches
+    contact_fuzzy = await _fetch_search_results_by_contact_id(
+        conn, SQL_FUZZY_CONTACTS, user_id, query, limit
+    )
+    interaction_fuzzy = await _fetch_search_results_by_contact_id(
+        conn, SQL_FUZZY_INTERACTIONS, user_id, query, limit
+    )
+    contact_term = await _fetch_search_results_by_contact_id(
+        conn, SQL_TERM_CONTACTS, user_id, query, limit
+    )
+    interaction_term = await _fetch_search_results_by_contact_id(
+        conn, SQL_TERM_INTERACTIONS, user_id, query, limit
+    )
+    interaction_semantic = await _fetch_search_results_by_contact_id(
+        conn, SQL_SEMANTIC_INTERACTIONS, user_id, embedding_str, limit
     )
 
-    # Early return if no results
-    if not fuzzy_rows and not term_rows and not semantic_rows:
-        logger.info("hybrid_search_no_results", query=query)
-        return []
+    # Collect all unique contact IDs
+    all_contact_ids = set()
+    all_contact_ids.update(contact_fuzzy.keys())
+    all_contact_ids.update(interaction_fuzzy.keys())
+    all_contact_ids.update(contact_term.keys())
+    all_contact_ids.update(interaction_term.keys())
+    all_contact_ids.update(interaction_semantic.keys())
 
-    # Collect scores by interaction ID
-    interaction_scores: dict[UUID, dict] = {}
-
-    # Process all search results
-    for search_type, rows in [
-        ("fuzzy", fuzzy_rows),
-        ("term", term_rows),
-        ("semantic", semantic_rows),
-    ]:
-        for row in rows:
-            _add_or_update_score(interaction_scores, row, search_type)
-
-    # Calculate weighted scores and create results
+    # Combine results
     results = []
-    for data in interaction_scores.values():
-        weighted_score = sum(data[key] * weight for key, weight in HYBRID_SEARCH_WEIGHTS.items())
+    for contact_id in all_contact_ids:
+        # Get contact row, preferring contact queries over interaction queries
+        contact_row = (
+            contact_fuzzy.get(contact_id)
+            or contact_term.get(contact_id)
+            or interaction_fuzzy.get(contact_id)
+            or interaction_term.get(contact_id)
+            or interaction_semantic.get(contact_id)
+        )
 
-        row = data["row"]
+        # Compute weighted combined score
+        combined_score = 0.0
+        if contact_id in contact_fuzzy:
+            combined_score += contact_fuzzy[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["fuzzy"]
+        if contact_id in interaction_fuzzy:
+            combined_score += (
+                interaction_fuzzy[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["fuzzy"]
+            )
+        if contact_id in contact_term:
+            combined_score += contact_term[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["term"]
+        if contact_id in interaction_term:
+            combined_score += interaction_term[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["term"]
+        if contact_id in interaction_semantic:
+            combined_score += (
+                interaction_semantic[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["semantic"]
+            )
+
+        # Create SearchResult
         results.append(
             SearchResult(
-                result_type="interaction",
-                interaction=SearchResultInteraction(
-                    id=row["id"],
-                    contact_id=row["contact_id"],
-                    interaction_date=row["interaction_date"],
-                    notes=row["notes"],
-                    location=row["location"],
-                    contact_first_name=row["contact_first_name"],
-                    contact_last_name=row["contact_last_name"],
+                contact=SearchResultContact(
+                    id=contact_id,
+                    first_name=contact_row["first_name"],
+                    last_name=contact_row["last_name"],
+                    birthday=contact_row["birthday"],
+                    latest_news=contact_row["latest_news"],
                 ),
-                score=weighted_score,
+                score=combined_score,
             )
         )
 
@@ -222,11 +135,10 @@ async def perform_hybrid_search(
     results = results[:limit]
 
     logger.info(
-        "hybrid_search_completed",
+        "search_completed",
         user_id=str(user_id),
         query=query,
         total_results=len(results),
-        unique_interactions=len(interaction_scores),
     )
 
     return results
