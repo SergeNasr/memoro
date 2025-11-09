@@ -797,6 +797,7 @@ async def get_relationship_item(
 async def cancel_relationship_form(
     request: Request,
     contact_id: UUID,
+    user_id: UUID = Depends(require_auth),
 ):
     """
     Cancel relationship form - returns empty content to clear the form container.
