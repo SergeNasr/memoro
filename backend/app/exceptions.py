@@ -2,7 +2,7 @@
 
 import structlog
 from fastapi import Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from httpx import HTTPError
 
 logger = structlog.get_logger(__name__)
@@ -71,3 +71,24 @@ async def http_error_handler(request: Request, exc: HTTPError) -> JSONResponse:
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": "External service unavailable. Please try again."},
     )
+
+
+async def authentication_redirect_handler(request: Request, exc) -> RedirectResponse:
+    """Handle authentication redirects for UI endpoints."""
+    from backend.app.auth import AuthenticationRedirect
+
+    if isinstance(exc, AuthenticationRedirect):
+        redirect_url = exc.redirect_url
+    else:
+        redirect_url = "/auth/login"
+
+    # Check if this is an HTMX request
+    is_htmx = request.headers.get("HX-Request") == "true"
+
+    response = RedirectResponse(url=redirect_url, status_code=302)
+
+    if is_htmx:
+        # HTMX will follow HX-Redirect header
+        response.headers["HX-Redirect"] = redirect_url
+
+    return response

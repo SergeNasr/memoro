@@ -6,6 +6,7 @@ import asyncpg
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from backend.app.auth import get_current_user
 from backend.app.db import get_db_dependency
 from backend.app.models import Contact, Relationship, RelationshipCreate
 from backend.app.services import relationships as relationship_service
@@ -18,8 +19,7 @@ router = APIRouter(prefix="/api/relationships", tags=["relationships"])
 @router.post("", response_model=Relationship, status_code=status.HTTP_201_CREATED)
 async def create_relationship(
     relationship: RelationshipCreate,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> Relationship:
     """
@@ -48,8 +48,7 @@ async def create_relationship(
 @router.get("/{relationship_id}", response_model=Relationship, status_code=status.HTTP_200_OK)
 async def get_relationship(
     relationship_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> Relationship:
     """Get a relationship by ID."""
@@ -65,8 +64,7 @@ async def get_relationship(
 async def update_relationship(
     relationship_id: UUID,
     relationship_type: str,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> Relationship:
     """
@@ -87,8 +85,7 @@ async def update_relationship(
 @router.delete("/{relationship_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_relationship(
     relationship_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> None:
     """
@@ -111,8 +108,7 @@ async def delete_relationship(
 )
 async def list_available_contacts(
     contact_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> list[Contact]:
     """

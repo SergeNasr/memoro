@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from backend.app.auth import require_auth
 from backend.app.constants import TemplateConstants
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.models import SearchType
@@ -26,12 +27,17 @@ router = APIRouter(tags=["ui"])
 templates = Jinja2Templates(directory="backend/app/templates")
 
 
+# All UI routes require authentication via require_auth dependency.
+# Therefore, if a request reaches template rendering, the user is authenticated.
+# We set this globally for UI routes - no need to pass it explicitly in each endpoint.
+templates.env.globals["is_authenticated"] = True
+
+
 @router.get("/", response_class=HTMLResponse)
 async def homepage(
     request: Request,
     page: int = 1,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -60,8 +66,7 @@ async def homepage(
 async def contact_profile(
     request: Request,
     contact_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -71,7 +76,7 @@ async def contact_profile(
 
     if summary is None:
         # Return 404 page or redirect
-        return templates.TemplateResponse(request, "404.html", status_code=404)
+        return templates.TemplateResponse(request, "404.html", {}, status_code=404)
 
     return templates.TemplateResponse(
         request,
@@ -89,8 +94,7 @@ async def contact_profile(
 async def get_contact_list_fragment(
     request: Request,
     page: int = 1,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -122,7 +126,7 @@ async def search_ui(
     q: str = "",
     search_type: SearchType = SearchType.HYBRID,
     limit: int = 20,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -160,6 +164,7 @@ async def search_ui(
 @router.post("/ui/interactions/transcribe")
 async def transcribe_audio_ui(
     audio: UploadFile = File(...),
+    user_id: UUID = Depends(require_auth),
 ):
     """
     Transcribe audio file using OpenAI Whisper API.
@@ -180,7 +185,7 @@ async def analyze_interaction_ui(
     request: Request,
     text: str = Form(..., min_length=1),
     contact_id: UUID | None = Form(None),
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -212,7 +217,7 @@ async def analyze_interaction_ui(
 @router.post("/ui/interactions/confirm")
 async def confirm_interaction_ui(
     request: Request,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_transaction_dependency),
 ):
     """
@@ -270,7 +275,7 @@ async def confirm_interaction_ui(
 async def get_interaction_fragment(
     request: Request,
     interaction_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -295,7 +300,7 @@ async def get_interaction_fragment(
 async def get_interaction_edit_form(
     request: Request,
     interaction_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -320,7 +325,7 @@ async def get_interaction_edit_form(
 async def update_interaction_ui(
     request: Request,
     interaction_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -367,7 +372,7 @@ async def update_interaction_ui(
 async def delete_interaction_ui(
     request: Request,
     interaction_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -415,7 +420,7 @@ async def delete_interaction_ui(
 async def get_contact_header(
     request: Request,
     contact_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -442,7 +447,7 @@ async def get_contact_header(
 async def get_contact_edit_form(
     request: Request,
     contact_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -467,7 +472,7 @@ async def get_contact_edit_form(
 async def update_contact_ui(
     request: Request,
     contact_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -516,7 +521,7 @@ async def update_contact_ui(
 async def get_delete_contact_modal(
     request: Request,
     contact_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -542,7 +547,7 @@ async def get_delete_contact_modal(
 async def delete_contact_ui(
     request: Request,
     contact_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -566,7 +571,7 @@ async def delete_contact_ui(
 async def get_new_relationship_form(
     request: Request,
     contact_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -605,7 +610,7 @@ async def get_new_relationship_form(
 async def create_relationship_ui(
     request: Request,
     contact_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -661,7 +666,7 @@ async def create_relationship_ui(
 async def get_relationship_edit_form(
     request: Request,
     relationship_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -709,7 +714,7 @@ async def get_relationship_edit_form(
 async def update_relationship_ui(
     request: Request,
     relationship_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -758,7 +763,7 @@ async def update_relationship_ui(
 async def get_relationship_item(
     request: Request,
     relationship_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """
@@ -792,6 +797,7 @@ async def get_relationship_item(
 async def cancel_relationship_form(
     request: Request,
     contact_id: UUID,
+    user_id: UUID = Depends(require_auth),
 ):
     """
     Cancel relationship form - returns empty content to clear the form container.
@@ -803,7 +809,7 @@ async def cancel_relationship_form(
 async def delete_relationship_ui(
     request: Request,
     relationship_id: UUID,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ):
     """

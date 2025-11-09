@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from supabase import AuthApiError, Client
 
-from backend.app.auth import COOKIE_NAME, get_current_user, get_supabase_client
+from backend.app.auth import COOKIE_NAME, get_current_user, get_optional_user, get_supabase_client
 from backend.app.config import settings
 
 logger = structlog.get_logger(__name__)
@@ -23,13 +23,17 @@ def get_cookie_kwargs() -> dict:
         "httponly": True,
         "secure": settings.environment != "development",
         "samesite": "lax",
+        "path": "/",  # Explicitly set path for cookie operations
     }
 
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     """Show login form asking for email."""
-    return templates.TemplateResponse(request, "login.html", {})
+    user_id = await get_optional_user(request)
+    return templates.TemplateResponse(
+        request, "login.html", {"is_authenticated": user_id is not None}
+    )
 
 
 @router.post("/login")
@@ -62,7 +66,10 @@ async def callback(
     supabase: Client = Depends(get_supabase_client),
 ):
     if not access_token:
-        return templates.TemplateResponse(request, "auth_callback.html", {})
+        user_id = await get_optional_user(request)
+        return templates.TemplateResponse(
+            request, "auth_callback.html", {"is_authenticated": user_id is not None}
+        )
 
     try:
         user_response = supabase.auth.get_user(jwt=access_token)

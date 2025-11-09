@@ -6,6 +6,7 @@ import asyncpg
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from backend.app.auth import get_current_user
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.models import (
     AnalyzeInteractionRequest,
@@ -45,7 +46,7 @@ async def analyze_interaction_endpoint(
 )
 async def confirm_interaction_endpoint(
     request: ConfirmInteractionRequest,
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_transaction_dependency),
 ) -> ConfirmInteractionResponse:
     """
@@ -98,8 +99,7 @@ async def confirm_interaction_endpoint(
 @router.get("/{interaction_id}", response_model=Interaction, status_code=status.HTTP_200_OK)
 async def get_interaction(
     interaction_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> Interaction:
     """
@@ -120,8 +120,7 @@ async def get_interaction(
 async def update_interaction(
     interaction_id: UUID,
     interaction_update: InteractionUpdate,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> Interaction:
     """
@@ -148,8 +147,7 @@ async def update_interaction(
 @router.delete("/{interaction_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_interaction(
     interaction_id: UUID,
-    # TODO: Add user authentication and get user_id from session
-    user_id: UUID = UUID("00000000-0000-0000-0000-000000000000"),  # Placeholder
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> None:
     """
