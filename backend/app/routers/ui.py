@@ -582,13 +582,14 @@ async def get_new_relationship_form(
         return HTMLResponse(content="<div>Contact not found</div>", status_code=404)
 
     contacts = await relationship_service.list_contacts_for_selection(conn, user_id, contact_id)
+    sorted_contacts = sorted(contacts, key=lambda x: x.first_name)
 
     return templates.TemplateResponse(
         request,
         "components/relationship_new.html",
         {
             "contact": summary.contact,
-            "available_contacts": contacts,
+            "available_contacts": sorted_contacts,
             "common_relationships": [
                 "parent",
                 "child",
