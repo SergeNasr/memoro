@@ -6,7 +6,10 @@ export class HtmxHandlers {
     }
 
     init() {
-        document.body.addEventListener('htmx:afterSwap', (evt) => {
+        // Handle HTMX errors
+        document.body.addEventListener('htmx:responseError', (evt) => {
+            this.handleError(evt);
+        });
 
         // Handle button disabling during requests
         document.body.addEventListener('htmx:beforeRequest', (evt) => {
