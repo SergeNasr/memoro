@@ -26,8 +26,10 @@ router = APIRouter(tags=["ui"])
 # Set up Jinja2 templates
 templates = Jinja2Templates(directory="backend/app/templates")
 
-# Add global context function to include is_authenticated for protected routes
-# All UI routes require authentication, so is_authenticated is always True
+
+# All UI routes require authentication via require_auth dependency.
+# Therefore, if a request reaches template rendering, the user is authenticated.
+# We set this globally for UI routes - no need to pass it explicitly in each endpoint.
 templates.env.globals["is_authenticated"] = True
 
 
@@ -74,7 +76,7 @@ async def contact_profile(
 
     if summary is None:
         # Return 404 page or redirect
-        return templates.TemplateResponse(request, "404.html", status_code=404)
+        return templates.TemplateResponse(request, "404.html", {}, status_code=404)
 
     return templates.TemplateResponse(
         request,
