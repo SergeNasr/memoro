@@ -6,7 +6,7 @@ import asyncpg
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.app.auth import get_authenticated_user
+from backend.app.auth import get_current_user
 from backend.app.db import get_db_dependency
 from backend.app.models import SearchRequest, SearchResponse
 from backend.app.services import search as search_service
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/search", tags=["search"])
 @router.post("", response_model=SearchResponse, status_code=status.HTTP_200_OK)
 async def search(
     search_request: SearchRequest,
-    user_id: UUID = Depends(get_authenticated_user),
+    user_id: UUID = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_db_dependency),
 ) -> SearchResponse:
     """

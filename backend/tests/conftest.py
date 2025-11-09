@@ -8,7 +8,7 @@ import pytest
 from fastapi import Request
 from httpx import ASGITransport, AsyncClient
 
-from backend.app.auth import get_authenticated_user, get_supabase_client, require_auth
+from backend.app.auth import get_current_user, get_supabase_client, require_auth
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.main import app
 
@@ -26,11 +26,11 @@ async def client():
     async def mock_require_auth(request: Request) -> UUID:
         return test_user_id
 
-    async def mock_get_authenticated_user(request: Request) -> UUID:
+    async def mock_get_current_user(request: Request) -> UUID:
         return test_user_id
 
     app.dependency_overrides[require_auth] = mock_require_auth
-    app.dependency_overrides[get_authenticated_user] = mock_get_authenticated_user
+    app.dependency_overrides[get_current_user] = mock_get_current_user
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac

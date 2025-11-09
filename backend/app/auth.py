@@ -34,14 +34,6 @@ async def get_current_user(request: Request) -> UUID:
     return UUID(user.user.id)
 
 
-async def get_authenticated_user(request: Request) -> UUID:
-    """
-    FastAPI dependency for API endpoints that require authentication.
-    Returns user_id if authenticated, raises HTTPException(401) otherwise.
-    """
-    return await get_current_user(request)
-
-
 class AuthenticationRedirect(HTTPException):
     """Custom exception for authentication redirects in UI endpoints."""
 
