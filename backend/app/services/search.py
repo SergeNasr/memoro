@@ -67,6 +67,12 @@ async def _fetch_search_results_by_contact_id(
     return {row["contact_id"]: row for row in rows}
 
 
+def _get_max_score(contact_id: UUID, *sources: dict) -> float:
+    """Get the maximum score from multiple search result dictionaries."""
+    scores = [source[contact_id]["score"] for source in sources if contact_id in source]
+    return max(scores) if scores else 0.0
+
+
 async def perform_search(
     conn: asyncpg.Connection,
     user_id: UUID,
@@ -124,21 +130,22 @@ async def perform_search(
         )
 
         # Compute weighted combined score
-        combined_score = 0.0
-        if contact_id in contact_fuzzy:
-            combined_score += contact_fuzzy[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["fuzzy"]
-        if contact_id in interaction_fuzzy:
-            combined_score += (
-                interaction_fuzzy[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["fuzzy"]
-            )
-        if contact_id in contact_term:
-            combined_score += contact_term[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["term"]
-        if contact_id in interaction_term:
-            combined_score += interaction_term[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["term"]
-        if contact_id in interaction_semantic:
-            combined_score += (
-                interaction_semantic[contact_id]["score"] * HYBRID_SEARCH_WEIGHTS["semantic"]
-            )
+        # Take max score for each search type to avoid double-counting when contact appears
+        # in both contact and interaction searches of the same type
+        fuzzy_score = _get_max_score(contact_id, contact_fuzzy, interaction_fuzzy)
+        term_score = _get_max_score(contact_id, contact_term, interaction_term)
+        semantic_score = (
+            _get_max_score(contact_id, interaction_semantic)
+            if contact_id in interaction_semantic
+            else 0.0
+        )
+
+        # Apply weights once per search type
+        combined_score = (
+            fuzzy_score * HYBRID_SEARCH_WEIGHTS["fuzzy"]
+            + term_score * HYBRID_SEARCH_WEIGHTS["term"]
+            + semantic_score * HYBRID_SEARCH_WEIGHTS["semantic"]
+        )
 
         # Create SearchResult
         results.append(
