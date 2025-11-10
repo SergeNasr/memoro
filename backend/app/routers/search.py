@@ -4,7 +4,7 @@ from uuid import UUID
 
 import asyncpg
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from backend.app.auth import get_current_user
 from backend.app.db import get_db_dependency
@@ -25,31 +25,16 @@ async def search(
     """
     Unified search endpoint for contacts and interactions.
 
-    Supports four search types:
-    - semantic: Vector similarity search on interaction embeddings
-    - fuzzy: Trigram similarity matching on text fields
-    - term: Basic ILIKE pattern matching
-    - hybrid: Combines fuzzy, term, and semantic with weighted scoring
+    Uses hybrid search which combines fuzzy, term, and semantic searches with weighted scoring.
 
     Returns combined results from contacts and interactions, sorted by relevance.
     """
-    if search_request.search_type == "hybrid":
-        results = await search_service.perform_hybrid_search(
-            conn, user_id, search_request.query, search_request.limit
-        )
-    elif search_request.search_type == "semantic":
-        raise HTTPException(
-            status_code=501,
-            detail="Semantic search not yet implemented - requires embedding service integration",
-        )
-    else:
-        results = await search_service.perform_search(
-            conn, user_id, search_request.query, search_request.search_type, search_request.limit
-        )
+    results = await search_service.perform_search(
+        conn, user_id, search_request.query, search_request.limit
+    )
 
     return SearchResponse(
         results=results,
         query=search_request.query,
-        search_type=search_request.search_type,
         total_results=len(results),
     )

@@ -1,7 +1,6 @@
 """Pydantic models for request/response validation."""
 
 from datetime import date
-from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -196,23 +195,10 @@ class ContactSummary(BaseModel):
 # Search Models
 
 
-class SearchType(str, Enum):
-    """Search type enumeration."""
-
-    SEMANTIC = "semantic"
-    FUZZY = "fuzzy"
-    TERM = "term"
-    HYBRID = "hybrid"
-
-
 class SearchRequest(BaseModel):
     """Request model for unified search."""
 
     query: str = Field(..., min_length=1, description="Search query string")
-    search_type: SearchType = Field(
-        SearchType.SEMANTIC,
-        description="Search type: semantic, fuzzy, term, or hybrid",
-    )
     limit: int = Field(10, ge=1, le=100, description="Maximum number of results to return")
 
 
@@ -241,9 +227,7 @@ class SearchResultInteraction(BaseModel):
 class SearchResult(BaseModel):
     """Unified search result."""
 
-    result_type: str = Field(..., description="Type of result: 'contact' or 'interaction'")
     contact: SearchResultContact | None = None
-    interaction: SearchResultInteraction | None = None
     score: float = Field(..., ge=0.0, le=1.0, description="Relevance score")
 
 
@@ -252,5 +236,4 @@ class SearchResponse(BaseModel):
 
     results: list[SearchResult]
     query: str
-    search_type: str
     total_results: int

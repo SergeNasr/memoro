@@ -12,7 +12,6 @@ from fastapi.templating import Jinja2Templates
 from backend.app.auth import require_auth
 from backend.app.constants import TemplateConstants
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
-from backend.app.models import SearchType
 from backend.app.services import contacts as contact_service
 from backend.app.services import interactions as interaction_service
 from backend.app.services import llm as llm_service
@@ -124,7 +123,6 @@ async def get_contact_list_fragment(
 async def search_ui(
     request: Request,
     q: str = "",
-    search_type: SearchType = SearchType.HYBRID,
     limit: int = 20,
     user_id: UUID = Depends(require_auth),
     conn: asyncpg.Connection = Depends(get_db_dependency),
@@ -140,13 +138,12 @@ async def search_ui(
             {
                 "results": [],
                 "query": "",
-                "search_type": search_type,
                 "total_results": 0,
                 "constants": TemplateConstants,
             },
         )
 
-    results = await search_service.perform_search(conn, user_id, q.strip(), search_type, limit)
+    results = await search_service.perform_search(conn, user_id, q.strip(), limit)
 
     return templates.TemplateResponse(
         request,
@@ -154,7 +151,6 @@ async def search_ui(
         {
             "results": results,
             "query": q,
-            "search_type": search_type,
             "total_results": len(results),
             "constants": TemplateConstants,
         },

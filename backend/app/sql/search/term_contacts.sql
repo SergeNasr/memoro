@@ -1,6 +1,6 @@
 -- Term-based search contacts (ILIKE matching)
 SELECT
-    id,
+    id as contact_id,
     first_name,
     last_name,
     birthday,
