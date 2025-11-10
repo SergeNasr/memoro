@@ -38,8 +38,32 @@ async def _fetch_search_results_by_contact_id(
     Execute a search query and return results as a dictionary mapping contact_id -> row.
 
     All search queries return contact_id, so this helper consolidates the pattern.
+
+    Raises ValueError if duplicate contact_ids are found in the results.
     """
     rows = await conn.fetch(sql, *args)
+
+    # Check for duplicate contact_ids
+    contact_ids = [row["contact_id"] for row in rows]
+    seen = set()
+    duplicates = []
+    for contact_id in contact_ids:
+        if contact_id in seen:
+            duplicates.append(str(contact_id))
+        seen.add(contact_id)
+
+    if duplicates:
+        logger.error(
+            "duplicate_contact_ids_found",
+            duplicate_count=len(duplicates),
+            total_rows=len(rows),
+            duplicates=duplicates[:10],  # Log first 10 duplicates
+        )
+        raise ValueError(
+            f"Found {len(duplicates)} duplicate contact_id(s) in search results. "
+            f"Each contact_id should appear only once. First duplicate(s): {', '.join(duplicates[:5])}"
+        )
+
     return {row["contact_id"]: row for row in rows}
 
 
