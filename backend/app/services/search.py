@@ -69,7 +69,7 @@ async def _fetch_search_results_by_contact_id(
 
 def _get_max_score(contact_id: UUID, *sources: dict) -> float:
     """Get the maximum score from multiple search result dictionaries."""
-    scores = [source[contact_id]["score"] for source in sources if contact_id in source]
+    scores = [float(source[contact_id]["score"]) for source in sources if contact_id in source]
     return max(scores) if scores else 0.0
 
 
