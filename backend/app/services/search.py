@@ -1,5 +1,6 @@
 """Search business logic - shared between API and UI."""
 
+from decimal import Decimal
 from uuid import UUID
 
 import asyncpg
@@ -23,9 +24,9 @@ SQL_SEMANTIC_INTERACTIONS = load_sql("search/semantic_interactions.sql")
 
 # Hybrid search weight configuration
 HYBRID_SEARCH_WEIGHTS = {
-    "semantic": 0.5,
-    "fuzzy": 0.3,
-    "term": 0.2,
+    "semantic": Decimal("0.5"),
+    "fuzzy": Decimal("0.3"),
+    "term": Decimal("0.2"),
 }
 
 
@@ -67,10 +68,10 @@ async def _fetch_search_results_by_contact_id(
     return {row["contact_id"]: row for row in rows}
 
 
-def _get_max_score(contact_id: UUID, *sources: dict) -> float:
+def _get_max_score(contact_id: UUID, *sources: dict) -> Decimal:
     """Get the maximum score from multiple search result dictionaries."""
     scores = [source[contact_id]["score"] for source in sources if contact_id in source]
-    return max(scores) if scores else 0.0
+    return max(scores) if scores else Decimal("0.0")
 
 
 async def perform_search(
@@ -137,7 +138,7 @@ async def perform_search(
         semantic_score = (
             _get_max_score(contact_id, interaction_semantic)
             if contact_id in interaction_semantic
-            else 0.0
+            else Decimal("0.0")
         )
 
         # Apply weights once per search type

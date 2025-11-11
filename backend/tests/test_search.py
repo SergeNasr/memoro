@@ -1,6 +1,7 @@
 """Tests for search endpoints."""
 
 from datetime import date
+from decimal import Decimal
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -63,7 +64,7 @@ class TestSearch:
                 last_name=f"Name{i}",
                 birthday=None,
                 latest_news=None,
-                score=0.9 - (i * 0.1),
+                score=Decimal("0.9") - (Decimal(str(i)) * Decimal("0.1")),
             )
             for i in range(5)
         ]
@@ -75,7 +76,7 @@ class TestSearch:
                 last_name="User",
                 birthday=None,
                 latest_news=None,
-                score=0.8 - (i * 0.1),
+                score=Decimal("0.8") - (Decimal(str(i)) * Decimal("0.1")),
             )
             for i in range(5)
         ]
@@ -171,14 +172,14 @@ class TestHybridSearch:
             last_name="Smith",
             birthday=None,
             latest_news=None,
-            score=0.8,
+            score=Decimal("0.8"),
         )
 
         # Mock fetch to return different scores for each search type
         # Order: contact_fuzzy, interaction_fuzzy, contact_term, interaction_term, interaction_semantic
-        fuzzy_result = dict(mock_interaction, score=0.7)
-        term_result = dict(mock_interaction, score=1.0)
-        semantic_result = dict(mock_interaction, score=0.9)
+        fuzzy_result = dict(mock_interaction, score=Decimal("0.7"))
+        term_result = dict(mock_interaction, score=Decimal("1.0"))
+        semantic_result = dict(mock_interaction, score=Decimal("0.9"))
 
         mock_db_connection.fetch.side_effect = [
             [],  # contact_fuzzy
@@ -228,7 +229,7 @@ class TestHybridSearch:
             last_name="Jones",
             birthday=None,
             latest_news=None,
-            score=0.8,
+            score=Decimal("0.8"),
         )
 
         # All searches return the same interaction (deduplicated by contact_id)
@@ -282,7 +283,7 @@ class TestHybridSearch:
             last_name="Smith",
             birthday=None,
             latest_news=None,
-            score=0.9,
+            score=Decimal("0.9"),
         )
 
         term_interaction = mock_db_connection.make_record(
@@ -295,7 +296,7 @@ class TestHybridSearch:
             last_name="Jones",
             birthday=None,
             latest_news=None,
-            score=1.0,
+            score=Decimal("1.0"),
         )
 
         semantic_interaction = mock_db_connection.make_record(
@@ -308,7 +309,7 @@ class TestHybridSearch:
             last_name="White",
             birthday=None,
             latest_news=None,
-            score=0.95,
+            score=Decimal("0.95"),
         )
 
         mock_db_connection.fetch.side_effect = [
@@ -355,7 +356,7 @@ class TestHybridSearch:
                 last_name="Name",
                 birthday=None,
                 latest_news=None,
-                score=0.9 - (i * 0.1),
+                score=Decimal("0.9") - (Decimal(str(i)) * Decimal("0.1")),
             )
             for i in range(5)
         ]
