@@ -1,8 +1,10 @@
 """Custom exceptions and error handlers."""
 
+import json
+
 import structlog
 from fastapi import Request, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from httpx import HTTPError
 
 logger = structlog.get_logger(__name__)
@@ -73,7 +75,7 @@ async def http_error_handler(request: Request, exc: HTTPError) -> JSONResponse:
     )
 
 
-async def authentication_redirect_handler(request: Request, exc) -> RedirectResponse:
+async def authentication_redirect_handler(request: Request, exc) -> HTMLResponse | RedirectResponse:
     """Handle authentication redirects for UI endpoints."""
     from backend.app.auth import AuthenticationRedirect
 
@@ -85,10 +87,12 @@ async def authentication_redirect_handler(request: Request, exc) -> RedirectResp
     # Check if this is an HTMX request
     is_htmx = request.headers.get("HX-Request") == "true"
 
-    response = RedirectResponse(url=redirect_url, status_code=302)
-
     if is_htmx:
-        # HTMX will follow HX-Redirect header
-        response.headers["HX-Redirect"] = redirect_url
-
-    return response
+        # For HTMX requests, return HTMLResponse with HX-Location header (JSON format)
+        # This forces a full page navigation
+        response = HTMLResponse(content="", status_code=200)
+        response.headers["HX-Location"] = json.dumps({"path": redirect_url})
+        return response
+    else:
+        # For non-HTMX requests, use standard redirect
+        return RedirectResponse(url=redirect_url, status_code=302)
