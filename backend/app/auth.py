@@ -2,19 +2,13 @@ from uuid import UUID
 
 import structlog
 from fastapi import HTTPException, Request
-from supabase import AuthApiError, Client, create_client
 
-from backend.app.config import settings
+from backend.app.auth_provider import AuthProviderError, get_auth_provider
 
 logger = structlog.get_logger(__name__)
 
 # Cookie configuration
-COOKIE_NAME = "supabase_access_token"
-
-
-def get_supabase_client() -> Client:
-    """Get the Supabase client."""
-    return create_client(settings.supabase_url, settings.supabase_secret_key)
+COOKIE_NAME = "clerk_session_token"
 
 
 async def get_current_user(request: Request) -> UUID:
@@ -22,16 +16,16 @@ async def get_current_user(request: Request) -> UUID:
     if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    supabase = get_supabase_client()
+    auth_provider = get_auth_provider()
     try:
-        user = supabase.auth.get_user(jwt=token)
-        if not user or not user.user:
+        user = auth_provider.verify_token(token)
+        if not user or not user.get("id"):
             raise HTTPException(status_code=401, detail="Unauthorized")
-    except AuthApiError as e:
-        logger.error("token_validation_failed", error=e.message)
+    except AuthProviderError as e:
+        logger.error("token_validation_failed", error=str(e))
         raise HTTPException(status_code=401, detail="Unauthorized") from e
 
-    return UUID(user.user.id)
+    return UUID(user["id"])
 
 
 class AuthenticationRedirect(HTTPException):

@@ -66,7 +66,6 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - 🧹 Clean HTMX implementation with minimal inline JavaScript
 
 ### 🚧 Coming Soon
-- 🔐 Google OAuth authentication (currently uses placeholder user_id)
 - 📊 AI-generated contact insights
 - 🎯 Semantic search using embeddings
 
@@ -98,9 +97,12 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - Embeddings stored in pgvector for semantic search
 
 ### Authentication
-- **Google OAuth 2.0** - Single sign-on
-- **authlib** - OAuth implementation
+- **Clerk** - Passwordless authentication with magic links
+- **clerk-backend-api** - Clerk Python SDK for backend authentication
+- **AuthProvider abstraction** - Provider-agnostic auth interface for easy migration
 - Session-based authentication with secure cookies
+- Magic link email authentication (no passwords)
+- User management via Clerk dashboard
 
 ### Logging
 - **structlog** - Structured logging
@@ -148,7 +150,8 @@ memoro/
 │   │   ├── exceptions.py           # Custom exceptions & handlers
 │   │   ├── logger.py               # structlog configuration
 │   │   ├── models.py               # Pydantic schemas (validation only)
-│   │   ├── auth.py                 # Google OAuth implementation
+│   │   ├── auth.py                 # Authentication dependencies and helpers
+│   │   ├── auth_provider.py        # Auth provider abstraction (Clerk implementation)
 │   │   ├── routers/
 │   │   │   ├── __init__.py
 │   │   │   ├── ui.py               # UI endpoints (HTMX HTML responses)
@@ -315,6 +318,14 @@ memoro/
 - Migrations use raw SQL operations for transparency
 - Best of both worlds: robust tooling + raw SQL control
 
+### Why Auth Provider Abstraction?
+- **Provider Independence**: Business logic doesn't depend on specific auth provider SDK
+- **Easy Migration**: Swap providers by changing implementation, not business logic
+- **Testability**: Mock the abstraction interface instead of provider SDKs
+- **Consistency**: Standardized error handling via `AuthProviderError`
+- **Future-Proof**: Easy to add new providers or switch if needed
+- Current implementation uses Clerk, but could easily switch to Firebase, Auth0, etc.
+
 ### Why pytest-postgresql?
 - In-memory database for fast tests
 - No Docker required for CI/CD
@@ -384,7 +395,7 @@ Service functions accept primitive parameters instead of Pydantic models:
 ## Database Schema Overview
 
 ### Core Tables (Singular Names)
-- **user** - Google OAuth user data (email, first_name, last_name)
+- **user** - Clerk user data (user_id from Clerk, email managed by Clerk)
 - **contact** - People in your network (first_name, last_name, birthday, latest_news)
 - **interaction** - Daily interaction logs (notes, location, interaction_date, embedding)
 - **family_member** - Contact relationships (self-referential links between contacts)
@@ -505,8 +516,7 @@ Service functions accept primitive parameters instead of Pydantic models:
 ```
 DATABASE_URL=postgresql://user:pass@localhost:5432/memoro
 OPENAI_API_KEY=sk-...
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
+CLERK_SECRET_KEY=sk_...  # Clerk secret key from dashboard
 SECRET_KEY=...  # for session signing
 LOG_LEVEL=DEBUG  # or INFO, WARNING, ERROR
 ENVIRONMENT=development  # or production
@@ -527,7 +537,7 @@ ENVIRONMENT=development  # or production
 - psycopg2-binary
 
 ### Auth & HTTP
-- authlib
+- clerk-backend-api
 - httpx
 - python-multipart
 

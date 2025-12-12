@@ -22,10 +22,13 @@
     <script>
         const hash = window.location.hash.substring(1);
         const params = new URLSearchParams(hash);
-        const accessToken = params.get('access_token');
+        const queryParams = new URLSearchParams(window.location.search);
 
-        if (accessToken) {
-            window.location.href = `/auth/callback?access_token=${encodeURIComponent(accessToken)}`;
+        // Clerk redirects with __clerk_created_session query parameter
+        const clerkSession = queryParams.get('__clerk_created_session') || params.get('__clerk_created_session');
+
+        if (clerkSession) {
+            window.location.href = `/auth/callback?__clerk_created_session=${encodeURIComponent(clerkSession)}`;
         } else {
             window.location.href = '/auth/login?error=no_token';
         }

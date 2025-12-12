@@ -8,7 +8,8 @@ import pytest
 from fastapi import Request
 from httpx import ASGITransport, AsyncClient
 
-from backend.app.auth import get_current_user, get_supabase_client, require_auth
+from backend.app.auth import get_current_user, require_auth
+from backend.app.auth_provider import AuthProvider, get_auth_provider
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.main import app
 
@@ -165,38 +166,35 @@ def mock_db_transaction():
 
 
 def make_mock_user_response(user_id: str):
-    """Helper to create mock Supabase user response."""
-    mock_user = MagicMock()
-    mock_user.id = user_id
-    mock_user_response = MagicMock()
-    mock_user_response.user = mock_user
-    return mock_user_response
+    """Helper to create mock auth provider user response."""
+    return {"id": user_id}
 
 
 @pytest.fixture
-def mock_supabase_client():
+def mock_auth_provider():
     """
-    Mock Supabase client for testing.
+    Mock auth provider for testing.
 
-    Automatically overrides get_supabase_client dependency and patches
+    Automatically overrides get_auth_provider dependency and patches
     the function call in auth.py for routes that use dependency injection
     and functions that call it directly.
 
     Usage:
-        def test_something(client, mock_supabase_client):
+        def test_something(client, mock_auth_provider):
             # Setup mock behavior
-            mock_supabase_client.auth.get_user.return_value = make_mock_user_response("...")
-            # Test will use the mocked client
+            mock_auth_provider.verify_token.return_value = {"id": "..."}
+            mock_auth_provider.get_user_from_token.return_value = {"id": "..."}
+            # Test will use the mocked provider
             response = await client.post("/auth/login", ...)
     """
-    mock_client = MagicMock()
+    mock_provider = MagicMock(spec=AuthProvider)
 
-    # Override dependency for routes using Depends(get_supabase_client)
-    app.dependency_overrides[get_supabase_client] = lambda: mock_client
+    # Override dependency for routes using Depends(get_auth_provider)
+    app.dependency_overrides[get_auth_provider] = lambda: mock_provider
 
-    # Patch for functions calling get_supabase_client() directly (like get_current_user)
-    with patch("backend.app.auth.get_supabase_client", return_value=mock_client):
-        yield mock_client
+    # Patch for functions calling get_auth_provider() directly (like get_current_user)
+    with patch("backend.app.auth_provider.get_auth_provider", return_value=mock_provider):
+        yield mock_provider
 
     # Clean up dependency override
-    app.dependency_overrides.pop(get_supabase_client, None)
+    app.dependency_overrides.pop(get_auth_provider, None)
