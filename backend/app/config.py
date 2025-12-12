@@ -23,8 +23,9 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    # Clerk
-    clerk_secret_key: str
+    # Supabase
+    supabase_url: str
+    supabase_secret_key: str
 
 
 # Global settings instance
