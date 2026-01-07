@@ -64,11 +64,27 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 async def http_error_handler(request: Request, exc: HTTPError) -> JSONResponse:
     """Handle HTTP errors from external services."""
-    logger.error(
-        "http_error",
-        error=str(exc),
-        path=request.url.path,
-    )
+    error_info = {
+        "exception_type": type(exc).__name__,
+        "error": str(exc),
+        "path": request.url.path,
+    }
+
+    # Log request URL if available
+    if hasattr(exc, "request") and exc.request:
+        url = str(exc.request.url) if hasattr(exc.request, "url") else None
+        if url:
+            error_info["request_url"] = url
+
+    # Add exception attributes if available
+    if hasattr(exc, "__dict__"):
+        for attr in ["status_code", "response"]:
+            if hasattr(exc, attr):
+                value = getattr(exc, attr)
+                if value is not None:
+                    error_info[attr] = str(value)
+
+    logger.error("http_error", **error_info)
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": "External service unavailable. Please try again."},
