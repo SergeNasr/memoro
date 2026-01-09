@@ -1,5 +1,7 @@
 """Tests for authentication routes."""
 
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
 from supabase import AuthApiError
@@ -7,6 +9,7 @@ from supabase import AuthApiError
 from backend.tests.conftest import make_mock_user_response
 
 TEST_USER_ID = "2276f96c-bc1a-4cf5-a20c-6b75cd2fe2f4"
+FIREBASE_USER_ID = "firebase-user-123"
 
 
 class TestLoginPage:
@@ -254,3 +257,139 @@ class TestSession:
         assert response.status_code == 200
         data = response.json()
         assert data["authenticated"] is False
+
+
+class TestFirebaseLogin:
+    """Tests for GET /auth/firebase/login endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_firebase_login_redirects_to_google(
+        self, client: AsyncClient, mock_firebase_settings
+    ):
+        """Test that Firebase login redirects to Google OAuth URL."""
+        oauth_url = "https://accounts.google.com/o/oauth2/v2/auth?client_id=test&redirect_uri=http://test/auth/firebase/callback"
+
+        with patch(
+            "backend.app.routers.auth.get_google_sign_in_url", return_value=oauth_url
+        ) as mock_get_url:
+            response = await client.get("/auth/firebase/login", follow_redirects=False)
+
+            assert response.status_code == 302
+            assert response.headers["location"] == oauth_url
+            mock_get_url.assert_called_once()
+            # Verify callback URL was passed
+            call_args = mock_get_url.call_args[0][0]
+            assert "/auth/firebase/callback" in call_args
+
+    @pytest.mark.asyncio
+    async def test_firebase_login_generates_unique_urls(
+        self, client: AsyncClient, mock_firebase_settings
+    ):
+        """Test that each login generates a unique OAuth URL."""
+        with patch("backend.app.routers.auth.get_google_sign_in_url") as mock_get_url:
+            mock_get_url.side_effect = [
+                "https://accounts.google.com/o/oauth2/v2/auth?state=state1",
+                "https://accounts.google.com/o/oauth2/v2/auth?state=state2",
+            ]
+
+            response1 = await client.get("/auth/firebase/login", follow_redirects=False)
+            response2 = await client.get("/auth/firebase/login", follow_redirects=False)
+
+            assert response1.status_code == 302
+            assert response2.status_code == 302
+            assert mock_get_url.call_count == 2
+
+
+class TestFirebaseCallback:
+    """Tests for GET /auth/firebase/callback endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_firebase_callback_no_token_serves_template(self, client: AsyncClient):
+        """Test that callback without id_token serves template."""
+        response = await client.get("/auth/firebase/callback")
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert b"<script" in response.content or b"script" in response.content.lower()
+
+    @pytest.mark.asyncio
+    async def test_firebase_callback_valid_token_sets_cookie(
+        self, client: AsyncClient, mock_firebase_settings
+    ):
+        """Test that valid Firebase token sets cookie and redirects."""
+        id_token = "valid-firebase-id-token"
+
+        with patch(
+            "backend.app.routers.auth.verify_firebase_token", return_value=FIREBASE_USER_ID
+        ) as mock_verify:
+            response = await client.get(
+                f"/auth/firebase/callback?id_token={id_token}",
+                follow_redirects=False,
+            )
+
+            assert response.status_code == 302
+            assert response.headers["location"] == "/"
+
+            # Check cookie is set
+            cookies = response.cookies
+            assert "supabase_access_token" in cookies
+            assert cookies["supabase_access_token"] == id_token
+
+            mock_verify.assert_called_once_with(id_token)
+
+    @pytest.mark.asyncio
+    async def test_firebase_callback_invalid_token_redirects_to_login(
+        self, client: AsyncClient, mock_firebase_settings
+    ):
+        """Test that invalid Firebase token redirects to login with error."""
+        id_token = "invalid-firebase-token"
+
+        with patch(
+            "backend.app.routers.auth.verify_firebase_token",
+            side_effect=ValueError("Invalid token"),
+        ):
+            response = await client.get(
+                f"/auth/firebase/callback?id_token={id_token}",
+                follow_redirects=False,
+            )
+
+            assert response.status_code in (302, 307)
+            assert "/auth/login?error=invalid_token" in response.headers["location"]
+
+    @pytest.mark.asyncio
+    async def test_firebase_callback_cookie_settings(
+        self, client: AsyncClient, mock_firebase_settings
+    ):
+        """Test that cookie has correct security settings."""
+        id_token = "valid-firebase-token"
+
+        with patch("backend.app.routers.auth.verify_firebase_token", return_value=FIREBASE_USER_ID):
+            response = await client.get(
+                f"/auth/firebase/callback?id_token={id_token}",
+                follow_redirects=False,
+            )
+
+            # Check Set-Cookie header contains security settings
+            set_cookie = response.headers.get("set-cookie", "").lower()
+            assert "httponly" in set_cookie
+            assert "samesite=lax" in set_cookie
+            assert "supabase_access_token" in set_cookie
+
+    @pytest.mark.asyncio
+    async def test_firebase_callback_exception_handling(
+        self, client: AsyncClient, mock_firebase_settings
+    ):
+        """Test that any exception during verification redirects to login."""
+        id_token = "token-that-raises-exception"
+
+        with patch(
+            "backend.app.routers.auth.verify_firebase_token",
+            side_effect=Exception("Firebase error"),
+        ):
+            response = await client.get(
+                f"/auth/firebase/callback?id_token={id_token}",
+                follow_redirects=False,
+            )
+
+            assert response.status_code in (302, 307)
+            assert "/auth/login?error=invalid_token" in response.headers["location"]
