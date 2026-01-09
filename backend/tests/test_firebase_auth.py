@@ -47,7 +47,8 @@ class TestGetGoogleSignInUrl:
     def test_get_google_sign_in_url_missing_client_id(self):
         """Test that missing client ID raises ValueError."""
         with patch("backend.app.services.firebase_auth.settings") as mock_settings:
-            mock_settings.firebase_web_client_id = None
+            # Simulate missing attribute by using getattr that returns None
+            type(mock_settings).firebase_web_client_id = property(lambda self: None)
 
             with pytest.raises(ValueError, match="firebase_web_client_id is required"):
                 get_google_sign_in_url("https://example.com/callback")
@@ -82,7 +83,12 @@ class TestVerifyFirebaseToken:
         id_token = "test-id-token"
         user_id = "test-user-id"
 
-        mock_decoded_token = {"uid": user_id, "email": "test@example.com"}
+        # Create a dict-like object that supports .get() method
+        class MockToken(dict):
+            def get(self, key, default=None):
+                return super().get(key, default)
+
+        mock_decoded_token = MockToken({"uid": user_id, "email": "test@example.com"})
 
         with patch("backend.app.services.firebase_auth._get_firebase_app"):
             with patch("backend.app.services.firebase_auth.auth") as mock_auth:
@@ -96,7 +102,13 @@ class TestVerifyFirebaseToken:
     def test_verify_firebase_token_no_uid(self):
         """Test that missing uid in token raises ValueError."""
         id_token = "test-id-token"
-        mock_decoded_token = {"email": "test@example.com"}
+        
+        # Create a dict-like object that supports .get() method
+        class MockToken(dict):
+            def get(self, key, default=None):
+                return super().get(key, default)
+        
+        mock_decoded_token = MockToken({"email": "test@example.com"})
 
         with patch("backend.app.services.firebase_auth._get_firebase_app"):
             with patch("backend.app.services.firebase_auth.auth") as mock_auth:

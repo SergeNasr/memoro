@@ -36,7 +36,8 @@ def get_google_sign_in_url(callback_url: str) -> str:
     Raises:
         ValueError: If required config is missing
     """
-    if not settings.firebase_web_client_id:
+    client_id = getattr(settings, "firebase_web_client_id", None)
+    if not client_id:
         raise ValueError("firebase_web_client_id is required")
 
     # Generate a secure state parameter for CSRF protection
@@ -47,7 +48,7 @@ def get_google_sign_in_url(callback_url: str) -> str:
 
     # Required OAuth parameters
     params = {
-        "client_id": settings.firebase_web_client_id,
+        "client_id": client_id,
         "redirect_uri": callback_url,
         "response_type": "code",
         "scope": "openid email profile",
