@@ -37,3 +37,5 @@ jobs:
         SECRET_KEY: "test-secret-key"
         SUPABASE_URL: "https://supabase_url"
         SUPABASE_SECRET_KEY: "sb_secret_key"
+        FIREBASE_WEB_CLIENT_ID: "123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com"
+        FIREBASE_SERVICE_ACCOUNT_PATH: "/tmp/test-firebase-service-account.json"
