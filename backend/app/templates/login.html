@@ -13,6 +13,16 @@
     </div>
 
     <div id="login-form-container">
+        <div class="login-options">
+            <a href="/auth/firebase/login" class="btn btn-primary google-sign-in-btn">
+                Sign in with Google
+            </a>
+        </div>
+
+        <div class="login-divider">
+            <span>or</span>
+        </div>
+
         <form id="login-form" class="login-form" hx-post="/auth/login" hx-target="#login-message" hx-swap="innerHTML">
             <div class="form-group">
                 <label for="email">Email</label>

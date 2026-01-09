@@ -960,6 +960,37 @@ main {
     border: 1px solid var(--border-color);
 }
 
+.login-options {
+    margin-bottom: 1rem;
+}
+
+.google-sign-in-btn {
+    width: 100%;
+    text-align: center;
+    display: block;
+    padding: 8px 12px;
+}
+
+.login-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 1.5rem 0;
+    color: var(--meta-color);
+    font-size: 9pt;
+}
+
+.login-divider::before,
+.login-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.login-divider span {
+    padding: 0 12px;
+}
+
 .login-form {
     margin-top: 1rem;
 }
