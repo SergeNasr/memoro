@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_secret_key: str
 
+    # Firebase
+    firebase_project_id: str
+    firebase_web_api_key: str
+    firebase_service_account_path: str
+
 
 # Global settings instance
 settings = Settings()
