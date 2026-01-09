@@ -6,6 +6,7 @@ from supabase import AuthApiError, Client
 
 from backend.app.auth import COOKIE_NAME, get_current_user, get_optional_user, get_supabase_client
 from backend.app.config import settings
+from backend.app.services.firebase_auth import get_google_sign_in_url, verify_firebase_token
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -96,6 +97,43 @@ async def logout(request: Request):
     """Clear session cookie and redirect to login."""
     response = RedirectResponse(url="/auth/login", status_code=302)
     response.delete_cookie(key=COOKIE_NAME, **get_cookie_kwargs())
+
+    return response
+
+
+@router.get("/firebase/login")
+async def firebase_login(request: Request):
+    """Redirect to Google Sign-In OAuth URL."""
+    callback_url = str(request.url_for("firebase_callback"))
+    oauth_url = get_google_sign_in_url(callback_url)
+    return RedirectResponse(url=oauth_url, status_code=302)
+
+
+@router.get("/firebase/callback", name="firebase_callback")
+async def firebase_callback(
+    request: Request,
+    id_token: str | None = Query(None, alias="id_token"),
+):
+    """Handle Firebase callback with id_token query param."""
+    if not id_token:
+        user_id = await get_optional_user(request)
+        return templates.TemplateResponse(
+            request, "auth_callback.html", {"is_authenticated": user_id is not None}
+        )
+
+    try:
+        user_id = verify_firebase_token(id_token)
+    except Exception as e:
+        logger.error("firebase_token_validation_failed", error=str(e))
+        return RedirectResponse(url="/auth/login?error=invalid_token")
+
+    response = RedirectResponse(url="/", status_code=302)
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=id_token,
+        max_age=int(COOKIE_MAX_AGE),
+        **get_cookie_kwargs(),
+    )
 
     return response
 
