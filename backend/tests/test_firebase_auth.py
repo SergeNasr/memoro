@@ -2,7 +2,7 @@
 
 import sys
 import urllib.parse
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 
@@ -24,9 +24,11 @@ class TestGetGoogleSignInUrl:
         callback_url = "https://example.com/auth/callback"
         client_id = "test-client-id.apps.googleusercontent.com"
 
-        with patch("backend.app.services.firebase_auth.settings") as mock_settings:
-            mock_settings.firebase_web_client_id = client_id
+        # Create a simple mock object that supports getattr
+        class MockSettings:
+            firebase_web_client_id = client_id
 
+        with patch("backend.app.services.firebase_auth.settings", MockSettings()):
             url = get_google_sign_in_url(callback_url)
 
             assert url.startswith("https://accounts.google.com/o/oauth2/v2/auth")
@@ -46,10 +48,11 @@ class TestGetGoogleSignInUrl:
 
     def test_get_google_sign_in_url_missing_client_id(self):
         """Test that missing client ID raises ValueError."""
-        with patch("backend.app.services.firebase_auth.settings") as mock_settings:
-            # Simulate missing attribute by using getattr that returns None
-            type(mock_settings).firebase_web_client_id = property(lambda self: None)
+        # Create a mock settings object without the attribute
+        class MockSettings:
+            pass
 
+        with patch("backend.app.services.firebase_auth.settings", MockSettings()):
             with pytest.raises(ValueError, match="firebase_web_client_id is required"):
                 get_google_sign_in_url("https://example.com/callback")
 
@@ -58,9 +61,10 @@ class TestGetGoogleSignInUrl:
         callback_url = "https://example.com/auth/callback"
         client_id = "test-client-id.apps.googleusercontent.com"
 
-        with patch("backend.app.services.firebase_auth.settings") as mock_settings:
-            mock_settings.firebase_web_client_id = client_id
+        class MockSettings:
+            firebase_web_client_id = client_id
 
+        with patch("backend.app.services.firebase_auth.settings", MockSettings()):
             url1 = get_google_sign_in_url(callback_url)
             url2 = get_google_sign_in_url(callback_url)
 
@@ -84,15 +88,12 @@ class TestVerifyFirebaseToken:
         user_id = "test-user-id"
 
         # Create a dict-like object that supports .get() method
-        class MockToken(dict):
-            def get(self, key, default=None):
-                return super().get(key, default)
-
-        mock_decoded_token = MockToken({"uid": user_id, "email": "test@example.com"})
+        mock_decoded_token = {"uid": user_id, "email": "test@example.com"}
 
         with patch("backend.app.services.firebase_auth._get_firebase_app"):
             with patch("backend.app.services.firebase_auth.auth") as mock_auth:
-                mock_auth.verify_id_token.return_value = mock_decoded_token
+                # Make verify_id_token return a dict that supports .get()
+                mock_auth.verify_id_token = Mock(return_value=mock_decoded_token)
 
                 result = verify_firebase_token(id_token)
 
@@ -103,16 +104,11 @@ class TestVerifyFirebaseToken:
         """Test that missing uid in token raises ValueError."""
         id_token = "test-id-token"
         
-        # Create a dict-like object that supports .get() method
-        class MockToken(dict):
-            def get(self, key, default=None):
-                return super().get(key, default)
-        
-        mock_decoded_token = MockToken({"email": "test@example.com"})
+        mock_decoded_token = {"email": "test@example.com"}
 
         with patch("backend.app.services.firebase_auth._get_firebase_app"):
             with patch("backend.app.services.firebase_auth.auth") as mock_auth:
-                mock_auth.verify_id_token.return_value = mock_decoded_token
+                mock_auth.verify_id_token = Mock(return_value=mock_decoded_token)
 
                 with pytest.raises(ValueError, match="No uid in Firebase token claims"):
                     verify_firebase_token(id_token)
@@ -127,7 +123,7 @@ class TestVerifyFirebaseToken:
 
         with patch("backend.app.services.firebase_auth._get_firebase_app"):
             with patch("backend.app.services.firebase_auth.auth") as mock_auth:
-                mock_auth.verify_id_token.side_effect = InvalidIdTokenError("Invalid token")
+                mock_auth.verify_id_token = Mock(side_effect=InvalidIdTokenError("Invalid token"))
 
                 with pytest.raises(InvalidIdTokenError):
                     verify_firebase_token(id_token)
@@ -142,7 +138,7 @@ class TestVerifyFirebaseToken:
 
         with patch("backend.app.services.firebase_auth._get_firebase_app"):
             with patch("backend.app.services.firebase_auth.auth") as mock_auth:
-                mock_auth.verify_id_token.side_effect = ExpiredIdTokenError("Expired token")
+                mock_auth.verify_id_token = Mock(side_effect=ExpiredIdTokenError("Expired token"))
 
                 with pytest.raises(ExpiredIdTokenError):
                     verify_firebase_token(id_token)
