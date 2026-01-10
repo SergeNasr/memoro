@@ -1,68 +1,113 @@
 """Tests for Firebase Auth service module."""
 
-import urllib.parse
+from unittest.mock import patch
 
+import httpx
 import pytest
 
-from backend.app.services.firebase_auth import get_google_sign_in_url, verify_firebase_token
+from backend.app.services.firebase_auth import (
+    complete_email_link_signin,
+    send_email_link,
+    verify_firebase_token,
+)
 
 
-class TestGetGoogleSignInUrl:
-    """Tests for get_google_sign_in_url function."""
+class TestSendEmailLink:
+    """Tests for send_email_link function."""
 
-    def test_get_google_sign_in_url_success(self, mock_firebase_settings):
-        """Test successful Google Sign-In URL generation."""
+    def test_send_email_link_success(self, mock_firebase_settings):
+        """Test successful email link sending."""
+        from unittest.mock import MagicMock
+
+        email = "test@example.com"
         callback_url = "https://example.com/auth/callback"
-        client_id = "test-client-id.apps.googleusercontent.com"
 
-        # Override the client_id for this test
-        mock_firebase_settings.firebase_web_client_id = client_id
+        with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {"email": email}
+            mock_post.return_value = mock_response
 
-        url = get_google_sign_in_url(callback_url)
+            send_email_link(email, callback_url)
 
-        assert url.startswith("https://accounts.google.com/o/oauth2/v2/auth")
+            mock_post.assert_called_once()
+            call_args = mock_post.call_args
+            assert "identitytoolkit.googleapis.com" in call_args[0][0]
+            assert call_args[1]["json"]["requestType"] == "EMAIL_SIGNIN"
+            assert call_args[1]["json"]["email"] == email
+            assert call_args[1]["json"]["continueUrl"] == callback_url
 
-        # Parse URL to check parameters
-        parsed = urllib.parse.urlparse(url)
-        params = dict(urllib.parse.parse_qsl(parsed.query))
+    def test_send_email_link_missing_api_key(self, mock_firebase_settings):
+        """Test that missing API key raises ValueError."""
+        mock_firebase_settings.firebase_web_api_key = None
 
-        assert params["client_id"] == client_id
-        assert params["redirect_uri"] == callback_url
-        assert params["response_type"] == "code"
-        assert params["scope"] == "openid email profile"
-        assert "state" in params
-        assert len(params["state"]) > 0
-        assert params["access_type"] == "offline"
-        assert params["prompt"] == "select_account"
+        with pytest.raises(ValueError, match="firebase_web_api_key is required"):
+            send_email_link("test@example.com", "https://example.com/callback")
 
-    def test_get_google_sign_in_url_missing_client_id(self, mock_firebase_settings):
-        """Test that missing client ID raises ValueError."""
-        # Remove the firebase_web_client_id attribute
-        if hasattr(mock_firebase_settings, "firebase_web_client_id"):
-            delattr(mock_firebase_settings, "firebase_web_client_id")
+    def test_send_email_link_http_error(self, mock_firebase_settings):
+        """Test that HTTP error raises ValueError."""
 
-        with pytest.raises(ValueError, match="firebase_web_client_id is required"):
-            get_google_sign_in_url("https://example.com/callback")
+        with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
+            mock_post.side_effect = httpx.HTTPError("Connection error")
 
-    def test_get_google_sign_in_url_generates_unique_state(self, mock_firebase_settings):
-        """Test that each call generates a unique state parameter."""
-        callback_url = "https://example.com/auth/callback"
-        client_id = "test-client-id.apps.googleusercontent.com"
+            with pytest.raises(ValueError, match="Failed to send email link"):
+                send_email_link("test@example.com", "https://example.com/callback")
 
-        mock_firebase_settings.firebase_web_client_id = client_id
 
-        url1 = get_google_sign_in_url(callback_url)
-        url2 = get_google_sign_in_url(callback_url)
+class TestCompleteEmailLinkSignin:
+    """Tests for complete_email_link_signin function."""
 
-        # Extract state parameters from URLs
-        params1 = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(url1).query))
-        params2 = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(url2).query))
+    def test_complete_email_link_signin_success(self, mock_firebase_settings):
+        """Test successful email link sign-in."""
+        from unittest.mock import MagicMock
 
-        # States should be different
-        assert params1["state"] != params2["state"]
-        # But both should be valid base64url strings
-        assert len(params1["state"]) > 0
-        assert len(params2["state"]) > 0
+        email = "test@example.com"
+        oob_code = "test-oob-code"
+        id_token = "test-id-token"
+
+        with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {"idToken": id_token, "localId": "test-user-id"}
+            mock_post.return_value = mock_response
+
+            result = complete_email_link_signin(email, oob_code)
+
+            assert result == id_token
+            mock_post.assert_called_once()
+            call_args = mock_post.call_args
+            assert "identitytoolkit.googleapis.com" in call_args[0][0]
+            assert call_args[1]["json"]["email"] == email
+            assert call_args[1]["json"]["oobCode"] == oob_code
+
+    def test_complete_email_link_signin_missing_api_key(self, mock_firebase_settings):
+        """Test that missing API key raises ValueError."""
+        mock_firebase_settings.firebase_web_api_key = None
+
+        with pytest.raises(ValueError, match="firebase_web_api_key is required"):
+            complete_email_link_signin("test@example.com", "oob-code")
+
+    def test_complete_email_link_signin_no_id_token(self, mock_firebase_settings):
+        """Test that missing idToken in response raises ValueError."""
+        from unittest.mock import MagicMock
+
+        with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {}
+            mock_post.return_value = mock_response
+
+            with pytest.raises(ValueError, match="Firebase did not return idToken"):
+                complete_email_link_signin("test@example.com", "oob-code")
+
+    def test_complete_email_link_signin_http_error(self, mock_firebase_settings):
+        """Test that HTTP error raises ValueError."""
+
+        with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
+            mock_post.side_effect = httpx.HTTPError("Connection error")
+
+            with pytest.raises(ValueError, match="Failed to complete email link sign-in"):
+                complete_email_link_signin("test@example.com", "oob-code")
 
 
 class TestVerifyFirebaseToken:
@@ -70,7 +115,6 @@ class TestVerifyFirebaseToken:
 
     def test_verify_firebase_token_success(self, mock_firebase_settings):
         """Test successful token verification."""
-        from unittest.mock import patch
 
         id_token = "test-id-token"
         user_id = "test-user-id"
@@ -91,7 +135,6 @@ class TestVerifyFirebaseToken:
 
     def test_verify_firebase_token_no_uid(self, mock_firebase_settings):
         """Test that missing uid in token raises ValueError."""
-        from unittest.mock import patch
 
         id_token = "test-id-token"
 
@@ -109,7 +152,6 @@ class TestVerifyFirebaseToken:
 
     def test_verify_firebase_token_invalid_token(self, mock_firebase_settings):
         """Test that invalid token raises exception."""
-        from unittest.mock import patch
 
         id_token = "invalid-token"
 
@@ -128,7 +170,6 @@ class TestVerifyFirebaseToken:
 
     def test_verify_firebase_token_expired_token(self, mock_firebase_settings):
         """Test that expired token raises exception."""
-        from unittest.mock import patch
 
         id_token = "expired-token"
 

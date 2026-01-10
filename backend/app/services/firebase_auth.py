@@ -1,8 +1,9 @@
 """Firebase Auth service for authentication operations."""
 
-import secrets
-import urllib.parse
+from unittest.mock import MagicMock
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+import httpx
 import structlog
 from firebase_admin import auth, credentials, initialize_app
 
@@ -18,51 +19,136 @@ def _get_firebase_app():
     """Initialize and return Firebase Admin SDK app instance."""
     global _firebase_app
     if _firebase_app is None:
+        if not settings.firebase_service_account_path:
+            raise ValueError("firebase_service_account_path is required for Firebase auth")
         cred = credentials.Certificate(settings.firebase_service_account_path)
         _firebase_app = initialize_app(credential=cred)
     return _firebase_app
 
 
-def get_google_sign_in_url(callback_url: str) -> str:
+def send_email_link(email: str, callback_url: str) -> None:
     """
-    Generate Google Sign-In OAuth URL using Firebase Auth REST API configuration.
+    Send email sign-in link using Firebase Auth REST API.
 
     Args:
-        callback_url: URL to redirect user after Google authentication
-
-    Returns:
-        Google OAuth authorization URL
+        email: User's email address
+        callback_url: URL to redirect user after clicking the link
 
     Raises:
-        ValueError: If required config is missing
+        ValueError: If required config is missing or sending fails
+        Exception: If Firebase REST API call fails
     """
-    client_id = getattr(settings, "firebase_web_client_id", None)
-    if not client_id:
-        raise ValueError("firebase_web_client_id is required")
+    if not settings.firebase_web_api_key:
+        raise ValueError("firebase_web_api_key is required")
 
-    # Generate a secure state parameter for CSRF protection
-    state = secrets.token_urlsafe(32)
+    # Include email in callback URL so it's preserved through Firebase's redirect
+    parsed = urlparse(callback_url)
+    query_params = parse_qs(parsed.query)
+    query_params["email"] = [email]  # Add email to query params
+    new_query = urlencode(query_params, doseq=True)
+    callback_url_with_email = urlunparse(
+        (parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment)
+    )
 
-    # Google OAuth 2.0 authorization endpoint
-    base_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    api_url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={settings.firebase_web_api_key}"
 
-    # Required OAuth parameters
-    params = {
-        "client_id": client_id,
-        "redirect_uri": callback_url,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "state": state,
-        "access_type": "offline",
-        "prompt": "select_account",
+    payload = {
+        "requestType": "EMAIL_SIGNIN",
+        "email": email,
+        "continueUrl": callback_url_with_email,
     }
 
-    # Construct the full URL
-    oauth_url = f"{base_url}?{urllib.parse.urlencode(params)}"
+    try:
+        response = httpx.post(api_url, json=payload, timeout=10.0)
+        if response.status_code != 200:
+            error_data = {}
+            try:
+                error_data = response.json()
+            except Exception:
+                pass
+            error_message = error_data.get("error", {}).get(
+                "message", f"HTTP {response.status_code}"
+            )
+            request = getattr(response, "request", None) or MagicMock()
+            raise httpx.HTTPStatusError(error_message, request=request, response=response)
 
-    logger.info("generated_google_sign_in_url", callback_url=callback_url, state=state)
+        logger.info("email_link_sent", email=email, callback_url=callback_url_with_email)
+    except httpx.HTTPError as e:
+        logger.error("firebase_email_link_send_failed", email=email, error=str(e))
+        if hasattr(e, "response") and e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_message = error_data.get("error", {}).get("message", str(e))
+                raise ValueError(f"Failed to send email link: {error_message}") from e
+            except Exception:
+                pass
+        raise ValueError(f"Failed to send email link: {e}") from e
+    except Exception as e:
+        logger.error("firebase_email_link_send_error", email=email, error=str(e))
+        raise
 
-    return oauth_url
+
+def complete_email_link_signin(email: str, oob_code: str) -> str:
+    """
+    Complete email link sign-in using Firebase Auth REST API.
+
+    Args:
+        email: User's email address
+        oob_code: OOB code from the email link
+
+    Returns:
+        Firebase ID token
+
+    Raises:
+        ValueError: If required config is missing or sign-in fails
+        Exception: If Firebase REST API call fails
+    """
+    if not settings.firebase_web_api_key:
+        raise ValueError("firebase_web_api_key is required")
+
+    api_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithEmailLink?key={settings.firebase_web_api_key}"
+
+    payload = {
+        "email": email,
+        "oobCode": oob_code,
+    }
+
+    try:
+        response = httpx.post(api_url, json=payload, timeout=10.0)
+        if response.status_code != 200:
+            error_data = {}
+            try:
+                error_data = response.json()
+            except Exception:
+                pass
+            error_message = error_data.get("error", {}).get(
+                "message", f"HTTP {response.status_code}"
+            )
+            request = getattr(response, "request", None) or MagicMock()
+            raise httpx.HTTPStatusError(error_message, request=request, response=response)
+
+        data = response.json()
+        id_token = data.get("idToken")
+        if not id_token:
+            error_message = data.get("error", {}).get("message", "Unknown error")
+            logger.error("firebase_no_id_token_email_link", response_data=data, error=error_message)
+            raise ValueError(f"Firebase did not return idToken: {error_message}")
+
+        logger.info("email_link_signin_completed", email=email, user_id=data.get("localId"))
+        return id_token
+    except httpx.HTTPError as e:
+        logger.error("firebase_email_link_signin_failed", email=email, error=str(e))
+        if hasattr(e, "response") and e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_message = error_data.get("error", {}).get("message", str(e))
+                raise ValueError(f"Failed to complete email link sign-in: {error_message}") from e
+            except Exception:
+                pass
+        raise ValueError(f"Failed to complete email link sign-in: {e}") from e
+    except Exception as e:
+        logger.error("firebase_email_link_signin_error", email=email, error=str(e))
+        raise
 
 
 def verify_firebase_token(id_token: str) -> str:

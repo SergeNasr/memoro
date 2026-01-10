@@ -3,7 +3,7 @@ from uuid import UUID
 import structlog
 from fastapi import HTTPException, Request
 from firebase_admin import App, auth, credentials, initialize_app
-from supabase import AuthApiError, Client, create_client
+from supabase import Client, create_client
 
 from backend.app.config import settings
 
@@ -33,20 +33,26 @@ def get_supabase_client() -> Client:
 
 
 async def get_current_user(request: Request) -> UUID:
-    token = request.cookies.get(COOKIE_NAME)
-    if not token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    """Get current user from Firebase ID token."""
+    return await get_current_user_firebase(request)
 
-    supabase = get_supabase_client()
-    try:
-        user = supabase.auth.get_user(jwt=token)
-        if not user or not user.user:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-    except AuthApiError as e:
-        logger.error("token_validation_failed", error=e.message)
-        raise HTTPException(status_code=401, detail="Unauthorized") from e
 
-    return UUID(user.user.id)
+# Supabase get_current_user (kept for rollback)
+# async def get_current_user(request: Request) -> UUID:
+#     token = request.cookies.get(COOKIE_NAME)
+#     if not token:
+#         raise HTTPException(status_code=401, detail="Unauthorized")
+#
+#     supabase = get_supabase_client()
+#     try:
+#         user = supabase.auth.get_user(jwt=token)
+#         if not user or not user.user:
+#             raise HTTPException(status_code=401, detail="Unauthorized")
+#     except AuthApiError as e:
+#         logger.error("token_validation_failed", error=e.message)
+#         raise HTTPException(status_code=401, detail="Unauthorized") from e
+#
+#     return UUID(user.user.id)
 
 
 async def get_current_user_firebase(request: Request) -> UUID:
