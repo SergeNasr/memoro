@@ -1,29 +1,15 @@
 """Firebase Auth service for authentication operations."""
 
-from unittest.mock import MagicMock
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import httpx
 import structlog
-from firebase_admin import auth, credentials, initialize_app
+from firebase_admin import auth
 
+from backend.app.auth import get_firebase_client
 from backend.app.config import settings
 
 logger = structlog.get_logger(__name__)
-
-# Firebase Admin SDK initialization (lazy)
-_firebase_app = None
-
-
-def _get_firebase_app():
-    """Initialize and return Firebase Admin SDK app instance."""
-    global _firebase_app
-    if _firebase_app is None:
-        if not settings.firebase_service_account_path:
-            raise ValueError("firebase_service_account_path is required for Firebase auth")
-        cred = credentials.Certificate(settings.firebase_service_account_path)
-        _firebase_app = initialize_app(credential=cred)
-    return _firebase_app
 
 
 def send_email_link(email: str, callback_url: str) -> None:
@@ -69,8 +55,7 @@ def send_email_link(email: str, callback_url: str) -> None:
             error_message = error_data.get("error", {}).get(
                 "message", f"HTTP {response.status_code}"
             )
-            request = getattr(response, "request", None) or MagicMock()
-            raise httpx.HTTPStatusError(error_message, request=request, response=response)
+            raise httpx.HTTPStatusError(error_message, request=response.request, response=response)
 
         logger.info("email_link_sent", email=email, callback_url=callback_url_with_email)
     except httpx.HTTPError as e:
@@ -83,6 +68,8 @@ def send_email_link(email: str, callback_url: str) -> None:
             except Exception:
                 pass
         raise ValueError(f"Failed to send email link: {e}") from e
+    except ValueError:
+        raise
     except Exception as e:
         logger.error("firebase_email_link_send_error", email=email, error=str(e))
         raise
@@ -124,8 +111,7 @@ def complete_email_link_signin(email: str, oob_code: str) -> str:
             error_message = error_data.get("error", {}).get(
                 "message", f"HTTP {response.status_code}"
             )
-            request = getattr(response, "request", None) or MagicMock()
-            raise httpx.HTTPStatusError(error_message, request=request, response=response)
+            raise httpx.HTTPStatusError(error_message, request=response.request, response=response)
 
         data = response.json()
         id_token = data.get("idToken")
@@ -146,6 +132,8 @@ def complete_email_link_signin(email: str, oob_code: str) -> str:
             except Exception:
                 pass
         raise ValueError(f"Failed to complete email link sign-in: {e}") from e
+    except ValueError:
+        raise
     except Exception as e:
         logger.error("firebase_email_link_signin_error", email=email, error=str(e))
         raise
@@ -166,13 +154,15 @@ def verify_firebase_token(id_token: str) -> str:
         Exception: If Firebase Admin SDK verification fails
     """
     try:
-        _get_firebase_app()
-        decoded_token = auth.verify_id_token(id_token)
+        firebase_app = get_firebase_client()
+        decoded_token = auth.verify_id_token(id_token, app=firebase_app)
         user_id = decoded_token.get("uid")
         if not user_id:
             raise ValueError("No uid in Firebase token claims")
         logger.debug("firebase_token_verified", user_id=user_id)
         return user_id
+    except ValueError:
+        raise
     except Exception as e:
         logger.error("firebase_token_verification_failed", error=str(e))
-        raise
+        raise ValueError("Firebase token verification failed") from e

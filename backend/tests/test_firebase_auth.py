@@ -128,16 +128,20 @@ class TestVerifyFirebaseToken:
         # Setup mock to return decoded token with uid
         mock_decoded_token = {"uid": user_id, "email": "test@example.com"}
 
-        # Patch both _get_firebase_app and the imported auth module
+        # Patch get_firebase_client and the imported auth module
+        from unittest.mock import MagicMock
+
         with (
-            patch("backend.app.services.firebase_auth._get_firebase_app"),
+            patch("backend.app.services.firebase_auth.get_firebase_client") as mock_get_client,
             patch("backend.app.services.firebase_auth.auth") as mock_auth,
         ):
+            mock_firebase_app = MagicMock()
+            mock_get_client.return_value = mock_firebase_app
             mock_auth.verify_id_token.return_value = mock_decoded_token
             result = verify_firebase_token(id_token)
 
             assert result == user_id
-            mock_auth.verify_id_token.assert_called_once_with(id_token)
+            mock_auth.verify_id_token.assert_called_once_with(id_token, app=mock_firebase_app)
 
     def test_verify_firebase_token_no_uid(self, mock_firebase_settings):
         """Test that missing uid in token raises ValueError."""
@@ -147,11 +151,15 @@ class TestVerifyFirebaseToken:
         # Setup mock to return decoded token without uid
         mock_decoded_token = {"email": "test@example.com"}
 
-        # Patch both _get_firebase_app and the imported auth module
+        # Patch get_firebase_client and the imported auth module
+        from unittest.mock import MagicMock
+
         with (
-            patch("backend.app.services.firebase_auth._get_firebase_app"),
+            patch("backend.app.services.firebase_auth.get_firebase_client") as mock_get_client,
             patch("backend.app.services.firebase_auth.auth") as mock_auth,
         ):
+            mock_firebase_app = MagicMock()
+            mock_get_client.return_value = mock_firebase_app
             mock_auth.verify_id_token.return_value = mock_decoded_token
             with pytest.raises(ValueError, match="No uid in Firebase token claims"):
                 verify_firebase_token(id_token)
@@ -165,13 +173,17 @@ class TestVerifyFirebaseToken:
         class InvalidIdTokenError(Exception):
             pass
 
-        # Patch both _get_firebase_app and the imported auth module
+        # Patch get_firebase_client and the imported auth module
+        from unittest.mock import MagicMock
+
         with (
-            patch("backend.app.services.firebase_auth._get_firebase_app"),
+            patch("backend.app.services.firebase_auth.get_firebase_client") as mock_get_client,
             patch("backend.app.services.firebase_auth.auth") as mock_auth,
         ):
+            mock_firebase_app = MagicMock()
+            mock_get_client.return_value = mock_firebase_app
             mock_auth.verify_id_token.side_effect = InvalidIdTokenError("Invalid token")
-            with pytest.raises(InvalidIdTokenError):
+            with pytest.raises(ValueError, match="Firebase token verification failed"):
                 verify_firebase_token(id_token)
 
     def test_verify_firebase_token_expired_token(self, mock_firebase_settings):
@@ -183,11 +195,15 @@ class TestVerifyFirebaseToken:
         class ExpiredIdTokenError(Exception):
             pass
 
-        # Patch both _get_firebase_app and the imported auth module
+        # Patch get_firebase_client and the imported auth module
+        from unittest.mock import MagicMock
+
         with (
-            patch("backend.app.services.firebase_auth._get_firebase_app"),
+            patch("backend.app.services.firebase_auth.get_firebase_client") as mock_get_client,
             patch("backend.app.services.firebase_auth.auth") as mock_auth,
         ):
+            mock_firebase_app = MagicMock()
+            mock_get_client.return_value = mock_firebase_app
             mock_auth.verify_id_token.side_effect = ExpiredIdTokenError("Expired token")
-            with pytest.raises(ExpiredIdTokenError):
+            with pytest.raises(ValueError, match="Firebase token verification failed"):
                 verify_firebase_token(id_token)

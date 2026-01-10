@@ -83,17 +83,15 @@ async def callback(
     error: str | None = Query(None),
 ):
     """Handle Firebase callback - email link sign-in."""
-    # Log the full URL to see what Firebase sends
+    # Log callback parameters (sanitized for security)
     logger.info(
         "callback_received",
-        full_url=str(request.url),
-        oob_code=oob_code,
+        has_oob_code=oob_code is not None,
+        has_email=email is not None,
+        has_id_token=id_token is not None,
         mode=mode,
-        email=email,
-        id_token=id_token,
         error=error,
-        query_params=dict(request.query_params),
-        fragment=request.url.fragment,
+        path=request.url.path,
     )
 
     if error:
@@ -146,10 +144,9 @@ async def callback(
     if oob_code:
         logger.warning(
             "callback_has_oobcode_but_no_idtoken",
-            oob_code=oob_code,
-            email=email,
+            has_email=email is not None,
             mode=mode,
-            url=str(request.url),
+            path=request.url.path,
         )
 
     # No valid callback parameters - show template
