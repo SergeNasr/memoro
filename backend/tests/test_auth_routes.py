@@ -179,14 +179,15 @@ class TestCallback:
 
     @pytest.mark.asyncio
     async def test_callback_email_link_missing_email(self, client: AsyncClient):
-        """Test that email link without email redirects to login."""
+        """Test that email link without email shows template (email is required for sign-in)."""
         response = await client.get(
             "/auth/callback?oobCode=test-code&mode=signIn",
             follow_redirects=False,
         )
 
-        assert response.status_code in (302, 307)
-        assert "/auth/login?error=missing_email" in response.headers["location"]
+        # Without email, we can't complete sign-in, so we show the template
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
 
     @pytest.mark.asyncio
     async def test_callback_email_link_invalid_code(

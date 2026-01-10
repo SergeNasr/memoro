@@ -35,7 +35,13 @@ class TestSendEmailLink:
             assert "identitytoolkit.googleapis.com" in call_args[0][0]
             assert call_args[1]["json"]["requestType"] == "EMAIL_SIGNIN"
             assert call_args[1]["json"]["email"] == email
-            assert call_args[1]["json"]["continueUrl"] == callback_url
+            # Email is now included in the continueUrl to preserve it through Firebase redirect
+            continue_url = call_args[1]["json"]["continueUrl"]
+            assert callback_url in continue_url
+            assert (
+                f"email={email.replace('@', '%40')}" in continue_url
+                or f"email={email}" in continue_url
+            )
 
     def test_send_email_link_missing_api_key(self, mock_firebase_settings):
         """Test that missing API key raises ValueError."""
