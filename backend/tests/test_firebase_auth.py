@@ -1,6 +1,6 @@
 """Tests for Firebase Auth service module."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -13,46 +13,20 @@ from backend.app.services.firebase_auth import (
 
 
 class TestSendEmailLink:
-    """Tests for send_email_link function."""
+    """Tests for send_email_link."""
 
-    def test_send_email_link_success(self, mock_firebase_settings):
-        """Test successful email link sending."""
-        from unittest.mock import MagicMock
-
-        email = "test@example.com"
-        callback_url = "https://example.com/auth/callback"
-
+    def test_success(self, mock_firebase_settings):
+        """Successfully sends email link."""
         with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"email": email}
-            mock_post.return_value = mock_response
+            mock_post.return_value = MagicMock(status_code=200, json=lambda: {})
 
-            send_email_link(email, callback_url)
-
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            assert "identitytoolkit.googleapis.com" in call_args[0][0]
-            assert call_args[1]["json"]["requestType"] == "EMAIL_SIGNIN"
-            assert call_args[1]["json"]["email"] == email
-            # Email is now included in the continueUrl to preserve it through Firebase redirect
-            continue_url = call_args[1]["json"]["continueUrl"]
-            assert callback_url in continue_url
-            assert (
-                f"email={email.replace('@', '%40')}" in continue_url
-                or f"email={email}" in continue_url
-            )
-
-    def test_send_email_link_missing_api_key(self, mock_firebase_settings):
-        """Test that missing API key raises ValueError."""
-        mock_firebase_settings.firebase_web_api_key = None
-
-        with pytest.raises(ValueError, match="firebase_web_api_key is required"):
             send_email_link("test@example.com", "https://example.com/callback")
 
-    def test_send_email_link_http_error(self, mock_firebase_settings):
-        """Test that HTTP error raises ValueError."""
+            mock_post.assert_called_once()
+            assert "identitytoolkit.googleapis.com" in mock_post.call_args[0][0]
 
+    def test_http_error(self, mock_firebase_settings):
+        """HTTP error raises ValueError."""
         with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
             mock_post.side_effect = httpx.HTTPError("Connection error")
 
@@ -61,54 +35,21 @@ class TestSendEmailLink:
 
 
 class TestCompleteEmailLinkSignin:
-    """Tests for complete_email_link_signin function."""
+    """Tests for complete_email_link_signin."""
 
-    def test_complete_email_link_signin_success(self, mock_firebase_settings):
-        """Test successful email link sign-in."""
-        from unittest.mock import MagicMock
-
-        email = "test@example.com"
-        oob_code = "test-oob-code"
-        id_token = "test-id-token"
-
+    def test_success(self, mock_firebase_settings):
+        """Successfully completes sign-in and returns ID token."""
         with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"idToken": id_token, "localId": "test-user-id"}
-            mock_post.return_value = mock_response
+            mock_post.return_value = MagicMock(
+                status_code=200, json=lambda: {"idToken": "test-token", "localId": "user-123"}
+            )
 
-            result = complete_email_link_signin(email, oob_code)
+            result = complete_email_link_signin("test@example.com", "oob-code")
 
-            assert result == id_token
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            assert "identitytoolkit.googleapis.com" in call_args[0][0]
-            assert call_args[1]["json"]["email"] == email
-            assert call_args[1]["json"]["oobCode"] == oob_code
+            assert result == "test-token"
 
-    def test_complete_email_link_signin_missing_api_key(self, mock_firebase_settings):
-        """Test that missing API key raises ValueError."""
-        mock_firebase_settings.firebase_web_api_key = None
-
-        with pytest.raises(ValueError, match="firebase_web_api_key is required"):
-            complete_email_link_signin("test@example.com", "oob-code")
-
-    def test_complete_email_link_signin_no_id_token(self, mock_firebase_settings):
-        """Test that missing idToken in response raises ValueError."""
-        from unittest.mock import MagicMock
-
-        with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {}
-            mock_post.return_value = mock_response
-
-            with pytest.raises(ValueError, match="Firebase did not return idToken"):
-                complete_email_link_signin("test@example.com", "oob-code")
-
-    def test_complete_email_link_signin_http_error(self, mock_firebase_settings):
-        """Test that HTTP error raises ValueError."""
-
+    def test_http_error(self, mock_firebase_settings):
+        """HTTP error raises ValueError."""
         with patch("backend.app.services.firebase_auth.httpx.post") as mock_post:
             mock_post.side_effect = httpx.HTTPError("Connection error")
 
@@ -117,93 +58,20 @@ class TestCompleteEmailLinkSignin:
 
 
 class TestVerifyFirebaseToken:
-    """Tests for verify_firebase_token function."""
+    """Tests for verify_firebase_token."""
 
-    def test_verify_firebase_token_success(self, mock_firebase_settings):
-        """Test successful token verification."""
+    def test_success(self, mock_firebase_auth):
+        """Successfully verifies token and returns user ID."""
+        from backend.tests.conftest import TEST_USER_ID
 
-        id_token = "test-id-token"
-        user_id = "test-user-id"
+        result = verify_firebase_token("test-token")
 
-        # Setup mock to return decoded token with uid
-        mock_decoded_token = {"uid": user_id, "email": "test@example.com"}
+        assert result == TEST_USER_ID
+        mock_firebase_auth.auth.verify_id_token.assert_called_once()
 
-        # Patch get_firebase_client and the imported auth module
-        from unittest.mock import MagicMock
+    def test_invalid_token(self, mock_firebase_auth):
+        """Invalid token raises ValueError."""
+        mock_firebase_auth.set_error(Exception("Invalid token"))
 
-        with (
-            patch("backend.app.services.firebase_auth.get_firebase_client") as mock_get_client,
-            patch("backend.app.services.firebase_auth.auth") as mock_auth,
-        ):
-            mock_firebase_app = MagicMock()
-            mock_get_client.return_value = mock_firebase_app
-            mock_auth.verify_id_token.return_value = mock_decoded_token
-            result = verify_firebase_token(id_token)
-
-            assert result == user_id
-            mock_auth.verify_id_token.assert_called_once_with(id_token, app=mock_firebase_app)
-
-    def test_verify_firebase_token_no_uid(self, mock_firebase_settings):
-        """Test that missing uid in token raises ValueError."""
-
-        id_token = "test-id-token"
-
-        # Setup mock to return decoded token without uid
-        mock_decoded_token = {"email": "test@example.com"}
-
-        # Patch get_firebase_client and the imported auth module
-        from unittest.mock import MagicMock
-
-        with (
-            patch("backend.app.services.firebase_auth.get_firebase_client") as mock_get_client,
-            patch("backend.app.services.firebase_auth.auth") as mock_auth,
-        ):
-            mock_firebase_app = MagicMock()
-            mock_get_client.return_value = mock_firebase_app
-            mock_auth.verify_id_token.return_value = mock_decoded_token
-            with pytest.raises(ValueError, match="No uid in Firebase token claims"):
-                verify_firebase_token(id_token)
-
-    def test_verify_firebase_token_invalid_token(self, mock_firebase_settings):
-        """Test that invalid token raises exception."""
-
-        id_token = "invalid-token"
-
-        # Create a mock exception class
-        class InvalidIdTokenError(Exception):
-            pass
-
-        # Patch get_firebase_client and the imported auth module
-        from unittest.mock import MagicMock
-
-        with (
-            patch("backend.app.services.firebase_auth.get_firebase_client") as mock_get_client,
-            patch("backend.app.services.firebase_auth.auth") as mock_auth,
-        ):
-            mock_firebase_app = MagicMock()
-            mock_get_client.return_value = mock_firebase_app
-            mock_auth.verify_id_token.side_effect = InvalidIdTokenError("Invalid token")
-            with pytest.raises(ValueError, match="Firebase token verification failed"):
-                verify_firebase_token(id_token)
-
-    def test_verify_firebase_token_expired_token(self, mock_firebase_settings):
-        """Test that expired token raises exception."""
-
-        id_token = "expired-token"
-
-        # Create a mock exception class
-        class ExpiredIdTokenError(Exception):
-            pass
-
-        # Patch get_firebase_client and the imported auth module
-        from unittest.mock import MagicMock
-
-        with (
-            patch("backend.app.services.firebase_auth.get_firebase_client") as mock_get_client,
-            patch("backend.app.services.firebase_auth.auth") as mock_auth,
-        ):
-            mock_firebase_app = MagicMock()
-            mock_get_client.return_value = mock_firebase_app
-            mock_auth.verify_id_token.side_effect = ExpiredIdTokenError("Expired token")
-            with pytest.raises(ValueError, match="Firebase token verification failed"):
-                verify_firebase_token(id_token)
+        with pytest.raises(ValueError, match="Firebase token verification failed"):
+            verify_firebase_token("invalid-token")

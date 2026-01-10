@@ -9,7 +9,7 @@ import pytest
 from fastapi import Request
 from httpx import ASGITransport, AsyncClient
 
-from backend.app.auth import get_current_user, get_supabase_client, require_auth
+from backend.app.auth import get_current_user, require_auth
 from backend.app.db import get_db_dependency, get_db_transaction_dependency
 from backend.app.main import app
 
@@ -171,67 +171,15 @@ def _make_mock_record(**kwargs):
     return MockRecord(**kwargs)
 
 
-def make_mock_user_response(user_id: str):
-    """Helper to create mock Supabase user response."""
-    mock_user = MagicMock()
-    mock_user.id = user_id
-    mock_user_response = MagicMock()
-    mock_user_response.user = mock_user
-    return mock_user_response
-
-
-@pytest.fixture
-def mock_supabase_client():
-    """
-    Mock Supabase client for testing.
-
-    Automatically overrides get_supabase_client dependency and patches
-    the function call in auth.py for routes that use dependency injection
-    and functions that call it directly.
-
-    Usage:
-        def test_something(client, mock_supabase_client):
-            # Setup mock behavior
-            mock_supabase_client.auth.get_user.return_value = make_mock_user_response("...")
-            # Test will use the mocked client
-            response = await client.post("/auth/login", ...)
-    """
-    mock_client = MagicMock()
-
-    # Override dependency for routes using Depends(get_supabase_client)
-    app.dependency_overrides[get_supabase_client] = lambda: mock_client
-
-    # Patch for functions calling get_supabase_client() directly (like get_current_user)
-    with patch("backend.app.auth.get_supabase_client", return_value=mock_client):
-        yield mock_client
-
-    # Clean up dependency override
-    app.dependency_overrides.pop(get_supabase_client, None)
+TEST_USER_ID = "2276f96c-bc1a-4cf5-a20c-6b75cd2fe2f4"
 
 
 @pytest.fixture
 def mock_firebase_settings():
-    """
-    Mock Firebase settings for testing.
-
-    Patches backend.app.config.settings and backend.app.services.firebase_auth.settings
-    to add Firebase configuration attributes.
-
-    Usage:
-        def test_something(mock_firebase_settings):
-            # Settings are already patched with Firebase attributes
-            # You can override specific values if needed
-            mock_firebase_settings.firebase_web_client_id = "custom-client-id"
-    """
+    """Mock Firebase settings for testing."""
     from backend.app.config import settings
 
     with (
-        patch.object(
-            settings,
-            "firebase_web_client_id",
-            "test-client-id.apps.googleusercontent.com",
-            create=True,
-        ),
         patch.object(
             settings, "firebase_service_account_path", "/path/to/service-account.json", create=True
         ),
@@ -240,3 +188,40 @@ def mock_firebase_settings():
         patch("backend.app.services.firebase_auth.settings", settings),
     ):
         yield settings
+
+
+@pytest.fixture
+def mock_firebase_auth(mock_firebase_settings):
+    """
+    Mock Firebase Auth for testing token verification.
+
+    Usage:
+        def test_something(mock_firebase_auth):
+            mock_firebase_auth.set_user(user_id="...", email="...")
+            # or
+            mock_firebase_auth.set_error(ValueError("Invalid"))
+    """
+
+    class FirebaseMock:
+        def __init__(self):
+            self.app = MagicMock()
+            self.auth = MagicMock()
+            self._decoded_token = {"uid": TEST_USER_ID, "email": "test@example.com"}
+
+        def set_user(self, user_id: str, email: str = "test@example.com"):
+            self._decoded_token = {"uid": user_id, "email": email}
+            self.auth.verify_id_token.return_value = self._decoded_token
+
+        def set_error(self, error: Exception):
+            self.auth.verify_id_token.side_effect = error
+
+    mock = FirebaseMock()
+    mock.auth.verify_id_token.return_value = mock._decoded_token
+
+    with (
+        patch("backend.app.auth.get_firebase_client", return_value=mock.app),
+        patch("backend.app.auth.auth", mock.auth),
+        patch("backend.app.services.firebase_auth.get_firebase_client", return_value=mock.app),
+        patch("backend.app.services.firebase_auth.auth", mock.auth),
+    ):
+        yield mock
