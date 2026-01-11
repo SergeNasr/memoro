@@ -3,7 +3,6 @@ from uuid import UUID
 import structlog
 from fastapi import HTTPException, Request
 from firebase_admin import App, auth, credentials, initialize_app
-from supabase import Client, create_client
 
 from backend.app.config import settings
 from backend.app.db import get_pool
@@ -12,7 +11,7 @@ from backend.app.services.users import get_user_by_firebase_uid
 logger = structlog.get_logger(__name__)
 
 # Cookie configuration
-COOKIE_NAME = "supabase_access_token"
+COOKIE_NAME = "access_token"
 
 # Firebase Admin SDK initialization (lazy)
 _firebase_app: App | None = None
@@ -29,17 +28,7 @@ def get_firebase_client() -> App:
     return _firebase_app
 
 
-def get_supabase_client() -> Client:
-    """Get the Supabase client."""
-    return create_client(settings.supabase_url, settings.supabase_secret_key)
-
-
 async def get_current_user(request: Request) -> UUID:
-    """Get current user from Firebase ID token."""
-    return await get_current_user_firebase(request)
-
-
-async def get_current_user_firebase(request: Request) -> UUID:
     """
     Get current user from Firebase ID token.
 

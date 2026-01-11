@@ -40,16 +40,6 @@ async def login_page(request: Request):
     )
 
 
-# Supabase login page (kept for rollback)
-# @router.get("/login", response_class=HTMLResponse)
-# async def login_page(request: Request):
-#     """Show login form asking for email."""
-#     user_id = await get_optional_user(request)
-#     return templates.TemplateResponse(
-#         request, "login.html", {"is_authenticated": user_id is not None}
-#     )
-
-
 @router.post("/login")
 async def send_magic_link(request: Request, email: str = Form(...)):
     """Send magic link email via Firebase."""
@@ -154,39 +144,6 @@ async def callback(
     return templates.TemplateResponse(
         request, "auth_callback.html", {"is_authenticated": user_id is not None}
     )
-
-
-# Supabase callback endpoint (kept for rollback)
-# @router.get("/callback", name="callback")
-# async def callback(
-#     request: Request,
-#     access_token: str | None = Query(None, alias="access_token"),
-#     supabase: Client = Depends(get_supabase_client),
-# ):
-#     if not access_token:
-#         user_id = await get_optional_user(request)
-#         return templates.TemplateResponse(
-#             request, "auth_callback.html", {"is_authenticated": user_id is not None}
-#         )
-#
-#     try:
-#         user_response = supabase.auth.get_user(jwt=access_token)
-#         if not user_response or not user_response.user:
-#             logger.warning("invalid_token_received")
-#             return RedirectResponse(url="/auth/login?error=invalid_token")
-#     except AuthApiError as e:
-#         logger.error("token_validation_failed", error=e.message)
-#         return RedirectResponse(url="/auth/login?error=invalid_token")
-#
-#     response = RedirectResponse(url="/", status_code=302)
-#     response.set_cookie(
-#         key=COOKIE_NAME,
-#         value=access_token,
-#         max_age=int(COOKIE_MAX_AGE),
-#         **get_cookie_kwargs(),
-#     )
-#
-#     return response
 
 
 @router.post("/logout")
