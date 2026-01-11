@@ -207,10 +207,20 @@ def mock_firebase_auth(mock_firebase_settings):
             self.app = MagicMock()
             self.auth = MagicMock()
             self._decoded_token = {"uid": TEST_USER_ID, "email": "test@example.com"}
+            self._internal_user_id = UUID(TEST_USER_ID)
 
         def set_user(self, user_id: str, email: str = "test@example.com"):
             self._decoded_token = {"uid": user_id, "email": email}
             self.auth.verify_id_token.return_value = self._decoded_token
+            # Also update the internal UUID (use the same value for simplicity in tests)
+            try:
+                self._internal_user_id = UUID(user_id)
+            except ValueError:
+                # If user_id is not a valid UUID, generate a deterministic one
+                import hashlib
+
+                hash_bytes = hashlib.md5(user_id.encode()).digest()
+                self._internal_user_id = UUID(bytes=hash_bytes)
 
         def set_error(self, error: Exception):
             self.auth.verify_id_token.side_effect = error
@@ -218,9 +228,29 @@ def mock_firebase_auth(mock_firebase_settings):
     mock = FirebaseMock()
     mock.auth.verify_id_token.return_value = mock._decoded_token
 
+    # Mock user lookup to return internal UUID
+    async def mock_get_or_create_user(*args, **kwargs):
+        return mock._internal_user_id
+
+    # Mock database pool for auth
+    mock_conn = MagicMock()
+    mock_pool = MagicMock()
+    # Mock the async context manager for pool.acquire()
+    mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+    mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    # get_pool() is async, so we need to return a coroutine
+    async def mock_get_pool():
+        return mock_pool
+
     with (
         patch("backend.app.auth.get_firebase_client", return_value=mock.app),
         patch("backend.app.auth.auth", mock.auth),
+        patch("backend.app.auth.get_pool", mock_get_pool),
+        patch(
+            "backend.app.auth.get_or_create_user_by_firebase_uid",
+            side_effect=mock_get_or_create_user,
+        ),
         patch("backend.app.services.firebase_auth.get_firebase_client", return_value=mock.app),
         patch("backend.app.services.firebase_auth.auth", mock.auth),
     ):

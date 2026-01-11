@@ -6,6 +6,8 @@ from firebase_admin import App, auth, credentials, initialize_app
 from supabase import Client, create_client
 
 from backend.app.config import settings
+from backend.app.db import get_pool
+from backend.app.services.users import get_or_create_user_by_firebase_uid
 
 logger = structlog.get_logger(__name__)
 
@@ -37,38 +39,34 @@ async def get_current_user(request: Request) -> UUID:
     return await get_current_user_firebase(request)
 
 
-# Supabase get_current_user (kept for rollback)
-# async def get_current_user(request: Request) -> UUID:
-#     token = request.cookies.get(COOKIE_NAME)
-#     if not token:
-#         raise HTTPException(status_code=401, detail="Unauthorized")
-#
-#     supabase = get_supabase_client()
-#     try:
-#         user = supabase.auth.get_user(jwt=token)
-#         if not user or not user.user:
-#             raise HTTPException(status_code=401, detail="Unauthorized")
-#     except AuthApiError as e:
-#         logger.error("token_validation_failed", error=e.message)
-#         raise HTTPException(status_code=401, detail="Unauthorized") from e
-#
-#     return UUID(user.user.id)
-
-
 async def get_current_user_firebase(request: Request) -> UUID:
-    """Get current user from Firebase ID token (parallel to get_current_user)."""
+    """
+    Get current user from Firebase ID token.
+
+    Verifies the Firebase token and resolves the Firebase UID to an internal UUID.
+    Creates a new user if one doesn't exist for this Firebase UID.
+    """
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
+        # Verify Firebase token
         firebase_app = get_firebase_client()
         decoded_token = auth.verify_id_token(token, app=firebase_app)
-        user_id = decoded_token.get("uid")
-        if not user_id:
+        firebase_uid = decoded_token.get("uid")
+        email = decoded_token.get("email", "")
+
+        if not firebase_uid:
             logger.error("firebase_token_missing_uid")
             raise HTTPException(status_code=401, detail="Unauthorized")
-        return UUID(user_id)
+
+        # Resolve Firebase UID to internal UUID
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            user_id = await get_or_create_user_by_firebase_uid(conn, firebase_uid, email)
+
+        return user_id
     except ValueError as e:
         logger.error("firebase_token_validation_failed", error=str(e))
         raise HTTPException(status_code=401, detail="Unauthorized") from e
@@ -93,7 +91,6 @@ async def require_auth(request: Request) -> UUID:
     try:
         return await get_current_user(request)
     except HTTPException as e:
-        # Raise custom exception that will be handled by exception handler
         raise AuthenticationRedirect("/auth/login") from e
 
 
