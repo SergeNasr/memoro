@@ -27,6 +27,7 @@ services:
       - ./backend:/app/backend:delegated
       - ./alembic:/app/alembic:delegated
       - ./.env:/app/.env:ro
+      - /Users/sergenasr/Downloads/memoro-firebase-admin-sdk.json:/app/secrets/firebase-service-account.json:ro
     environment:
       - DATABASE_URL=postgresql://memoro:memoro@postgres:5432/memoro
       - LOG_LEVEL=INFO

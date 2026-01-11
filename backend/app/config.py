@@ -27,10 +27,11 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_secret_key: str
 
-    # Firebase (optional for tests)
+    # Firebase
+    # Required for Firebase Auth REST API OAuth flow
     firebase_project_id: str | None = None
     firebase_web_api_key: str | None = None
-    firebase_web_client_id: str | None = None
+    # Required for Firebase Admin SDK token verification
     firebase_service_account_path: str | None = None
 
 
