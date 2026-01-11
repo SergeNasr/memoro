@@ -7,7 +7,7 @@ from supabase import Client, create_client
 
 from backend.app.config import settings
 from backend.app.db import get_pool
-from backend.app.services.users import get_or_create_user_by_firebase_uid
+from backend.app.services.users import get_user_by_firebase_uid
 
 logger = structlog.get_logger(__name__)
 
@@ -55,7 +55,6 @@ async def get_current_user_firebase(request: Request) -> UUID:
         firebase_app = get_firebase_client()
         decoded_token = auth.verify_id_token(token, app=firebase_app)
         firebase_uid = decoded_token.get("uid")
-        email = decoded_token.get("email", "")
 
         if not firebase_uid:
             logger.error("firebase_token_missing_uid")
@@ -64,7 +63,7 @@ async def get_current_user_firebase(request: Request) -> UUID:
         # Resolve Firebase UID to internal UUID
         pool = await get_pool()
         async with pool.acquire() as conn:
-            user_id = await get_or_create_user_by_firebase_uid(conn, firebase_uid, email)
+            user_id = await get_user_by_firebase_uid(conn, firebase_uid)
 
         return user_id
     except ValueError as e:

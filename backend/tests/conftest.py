@@ -248,7 +248,7 @@ def mock_firebase_auth(mock_firebase_settings):
         patch("backend.app.auth.auth", mock.auth),
         patch("backend.app.auth.get_pool", mock_get_pool),
         patch(
-            "backend.app.auth.get_or_create_user_by_firebase_uid",
+            "backend.app.auth.get_user_by_firebase_uid",
             side_effect=mock_get_or_create_user,
         ),
         patch("backend.app.services.firebase_auth.get_firebase_client", return_value=mock.app),

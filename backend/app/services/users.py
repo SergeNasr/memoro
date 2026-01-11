@@ -1,4 +1,4 @@
-"""User service for user lookup and creation."""
+"""User service for user lookup."""
 
 from uuid import UUID
 
@@ -9,32 +9,28 @@ from backend.app.db import load_sql
 
 logger = structlog.get_logger(__name__)
 
-SQL_GET_OR_CREATE_BY_FIREBASE_UID = load_sql("users/get_or_create_by_firebase_uid.sql")
+SQL_GET_USER_BY_FIREBASE_UID = load_sql("users/get_by_firebase_uid.sql")
 
 
-async def get_or_create_user_by_firebase_uid(
-    conn: asyncpg.Connection, firebase_uid: str, email: str
-) -> UUID:
+async def get_user_by_firebase_uid(conn: asyncpg.Connection, firebase_uid: str) -> UUID:
     """
-    Get or create a user by Firebase UID.
-
-    If user with firebase_uid exists, returns their internal UUID.
-    If not, creates a new user and returns the new UUID.
+    Get user by Firebase UID.
 
     Args:
         conn: Database connection
         firebase_uid: Firebase user ID string
-        email: User's email from Firebase token
 
     Returns:
         Internal UUID for the user
+
+    Raises:
+        ValueError: If no user found with this firebase_uid
     """
-    # Execute the multi-statement SQL (INSERT ... ON CONFLICT, then SELECT)
-    row = await conn.fetchrow(SQL_GET_OR_CREATE_BY_FIREBASE_UID, firebase_uid, email)
+    row = await conn.fetchrow(SQL_GET_USER_BY_FIREBASE_UID, firebase_uid)
 
     if not row:
-        logger.error("user_creation_failed", firebase_uid=firebase_uid, email=email)
-        raise ValueError("Failed to get or create user")
+        logger.error("user_not_found", firebase_uid=firebase_uid)
+        raise ValueError("User not found")
 
     user_id = row["id"]
     logger.debug("user_resolved", firebase_uid=firebase_uid, user_id=str(user_id))
