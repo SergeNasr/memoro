@@ -26,7 +26,7 @@ just install
 
 # Configure environment
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
+# Edit .env with your OPENAI_API_KEY and Firebase credentials
 
 # Start database
 docker-compose up -d

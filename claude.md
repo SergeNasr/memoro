@@ -9,7 +9,7 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - Semantic search based on context
 - Look up latest recorded context for someone
 - Web-based application
-- Google OAuth login
+- Firebase email link authentication (magic links)
 - Cloud-agnostic deployment (starting with Digital Ocean)
 
 ## Implemented Features
@@ -64,9 +64,16 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - 🎨 Retro-styled responsive UI with HTMX and consistent delete confirmations
 - ⌨️ Keyboard shortcuts (cmd/ctrl+k for search, cmd/ctrl+. for new interaction)
 - 🧹 Clean HTMX implementation with minimal inline JavaScript
+- 🔐 Firebase email link authentication with cookie-based sessions
+
+**Authentication:**
+- 🔐 **GET /auth/login** - Login page with email input
+- 📧 **POST /auth/login** - Send magic link email via Firebase
+- 🔗 **GET /auth/callback** - Handle Firebase email link sign-in callback
+- 🚪 **POST /auth/logout** - Clear session and redirect to login
+- 🔍 **GET /auth/session** - Check authentication status
 
 ### 🚧 Coming Soon
-- 🔐 Google OAuth authentication (currently uses placeholder user_id)
 - 📊 AI-generated contact insights
 - 🎯 Semantic search using embeddings
 
@@ -98,9 +105,10 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - Embeddings stored in pgvector for semantic search
 
 ### Authentication
-- **Google OAuth 2.0** - Single sign-on
-- **authlib** - OAuth implementation
-- Session-based authentication with secure cookies
+- **Firebase Auth** - Email link (magic link) authentication
+- **firebase-admin** - Server-side token verification and user management
+- **Firebase REST API** - Sending email links and completing sign-in
+- Cookie-based session management with secure httponly cookies
 
 ### Logging
 - **structlog** - Structured logging
@@ -148,19 +156,23 @@ memoro/
 │   │   ├── exceptions.py           # Custom exceptions & handlers
 │   │   ├── logger.py               # structlog configuration
 │   │   ├── models.py               # Pydantic schemas (validation only)
-│   │   ├── auth.py                 # Google OAuth implementation
+│   │   ├── auth.py                 # Firebase token verification & user resolution
 │   │   ├── routers/
 │   │   │   ├── __init__.py
 │   │   │   ├── ui.py               # UI endpoints (HTMX HTML responses)
+│   │   │   ├── auth.py             # Auth endpoints (login, callback, logout)
 │   │   │   ├── contacts.py         # Contact CRUD API endpoints
 │   │   │   ├── interactions.py     # Interaction API endpoints
+│   │   │   ├── relationships.py    # Relationship CRUD API endpoints
 │   │   │   └── search.py           # Search API endpoints
 │   │   ├── services/
 │   │   │   ├── __init__.py
 │   │   │   ├── llm.py              # OpenAI API (structured output)
-│   │   │   ├── embeddings.py       # Embedding generation
+│   │   │   ├── firebase_auth.py    # Firebase email link & token operations
+│   │   │   ├── users.py            # User lookup by Firebase UID
 │   │   │   ├── search.py           # Search logic (semantic/fuzzy/term)
 │   │   │   ├── contacts.py         # Contact business logic
+│   │   │   ├── relationships.py    # Relationship business logic
 │   │   │   └── interactions.py     # Interaction business logic
 │   │   ├── sql/                    # Raw SQL queries (by domain)
 │   │   │   ├── contacts/
@@ -168,28 +180,42 @@ memoro/
 │   │   │   │   ├── update_latest_news.sql
 │   │   │   │   ├── get_by_id.sql
 │   │   │   │   ├── update.sql
+│   │   │   │   ├── update_from_form.sql
 │   │   │   │   ├── delete.sql
 │   │   │   │   ├── list.sql
-│   │   │   │   └── search.sql      # Vector similarity search
+│   │   │   │   ├── list_for_selection.sql
+│   │   │   │   ├── count.sql
+│   │   │   │   ├── count_interactions.sql
+│   │   │   │   ├── last_interaction_date.sql
+│   │   │   │   ├── recent_interactions.sql
+│   │   │   │   └── relationships_with_details.sql
 │   │   │   ├── interactions/
 │   │   │   │   ├── create.sql
 │   │   │   │   ├── get_by_id.sql
 │   │   │   │   ├── update.sql
 │   │   │   │   ├── delete.sql
 │   │   │   │   └── list_by_contact.sql
+│   │   │   ├── relationships/
+│   │   │   │   ├── create.sql
+│   │   │   │   ├── get_by_id.sql
+│   │   │   │   ├── update.sql
+│   │   │   │   └── delete.sql
 │   │   │   ├── search/
 │   │   │   │   ├── fuzzy_contacts.sql
 │   │   │   │   ├── fuzzy_interactions.sql
+│   │   │   │   ├── semantic_interactions.sql
 │   │   │   │   ├── term_contacts.sql
 │   │   │   │   └── term_interactions.sql
-│   │   │   └── family_members/
-│   │   │       └── create.sql
+│   │   │   └── users/
+│   │   │       └── get_by_firebase_uid.sql
 │   │   ├── prompts/                # LLM prompt templates
 │   │   │   └── extract_interaction.txt
 │   │   ├── templates/              # Jinja2 templates
 │   │   │   ├── base.html           # Base template with header/footer
 │   │   │   ├── index.html          # Homepage with contact list
 │   │   │   ├── contact_profile.html # Contact detail page
+│   │   │   ├── login.html          # Email login page
+│   │   │   ├── auth_callback.html  # Firebase auth callback handler
 │   │   │   └── components/         # HTMX fragments
 │   │   │       ├── contact_list.html          # Contact list fragment
 │   │   │       ├── contact_delete_modal.html  # Delete confirmation modal
@@ -216,17 +242,24 @@ memoro/
 │   ├── tests/
 │   │   ├── __init__.py
 │   │   ├── conftest.py             # pytest fixtures (in-memory DB)
+│   │   ├── test_auth_routes.py     # Auth endpoint tests
 │   │   ├── test_contacts.py
+│   │   ├── test_firebase_auth.py   # Firebase auth service tests
 │   │   ├── test_interactions.py
-│   │   ├── test_search.py
-│   │   ├── test_ui.py              # UI endpoint tests
+│   │   ├── test_llm.py             # LLM service tests
 │   │   ├── test_network_blocking.py # Network isolation tests
-│   │   └── test_relationship_mapping.py # Family relationship tests
+│   │   ├── test_relationships.py   # Relationship CRUD tests
+│   │   ├── test_search.py
+│   │   └── test_ui.py              # UI endpoint tests
 │   └── Dockerfile
 ├── alembic/                        # Alembic migration files
 │   ├── versions/
 │   │   ├── d892e083fe19_initial_schema.py
-│   │   └── 72052229f181_enable_pg_trgm_extension.py
+│   │   ├── 72052229f181_enable_pg_trgm_extension.py
+│   │   ├── 399cbbf99688_convert_embedding_to_vector_type.py
+│   │   ├── 5899cb3bf7f7_make_contact_last_name_optional.py
+│   │   ├── c35789ce0d42_rename_family_members_to_relationships.py
+│   │   └── ba446b74ae65_add_firebase_uid_to_user.py
 │   ├── env.py                      # Alembic environment config
 │   └── script.py.mako              # Migration template
 ├── alembic.ini                     # Alembic configuration
@@ -384,10 +417,10 @@ Service functions accept primitive parameters instead of Pydantic models:
 ## Database Schema Overview
 
 ### Core Tables (Singular Names)
-- **user** - Google OAuth user data (email, first_name, last_name)
+- **user** - User data with Firebase UID mapping (email, first_name, last_name, firebase_uid)
 - **contact** - People in your network (first_name, last_name, birthday, latest_news)
 - **interaction** - Daily interaction logs (notes, location, interaction_date, embedding)
-- **family_member** - Contact relationships (self-referential links between contacts)
+- **relationship** - Contact relationships (self-referential links between contacts)
 
 ### Key Features
 - UUID primary keys for distributed-friendly IDs
@@ -456,12 +489,24 @@ Service functions accept primitive parameters instead of Pydantic models:
 - ✅ PATCH /ui/interactions/{id} - Inline editing
 - ✅ DELETE /ui/interactions/{id} - Delete and refresh list
 
-*Note:* New cancel endpoints (GET /ui/relationships/{id}, GET /ui/contacts/{id}/relationships/cancel) added in recent cleanup but not yet covered by tests.
+*Auth Endpoints:*
+- ✅ GET /auth/login - Login page rendering
+- ✅ POST /auth/login - Send magic link
+- ✅ GET /auth/callback - Handle Firebase callback (oobCode, idToken, errors)
+- ✅ POST /auth/logout - Session cleanup
+- ✅ GET /auth/session - Auth status check
+
+*Firebase Auth Service:*
+- ✅ send_email_link - Email link sending via REST API
+- ✅ complete_email_link_signin - OOB code exchange
+- ✅ verify_firebase_token - Token verification
+
+*Relationship Endpoints:*
+- ✅ Relationship CRUD operations
 
 *Infrastructure:*
 - ✅ Health check endpoint
 - ✅ Network isolation tests (pytest-socket)
-- ✅ Relationship mapping tests
 
 **Testing Approach:**
 - FastAPI dependency injection with automatic overrides
@@ -505,11 +550,16 @@ Service functions accept primitive parameters instead of Pydantic models:
 ```
 DATABASE_URL=postgresql://user:pass@localhost:5432/memoro
 OPENAI_API_KEY=sk-...
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-SECRET_KEY=...  # for session signing
+SECRET_KEY=...  # for session/cookie signing
 LOG_LEVEL=DEBUG  # or INFO, WARNING, ERROR
 ENVIRONMENT=development  # or production
+HOST=0.0.0.0
+PORT=8000
+
+# Firebase Auth
+FIREBASE_PROJECT_ID=my-project-12345
+FIREBASE_WEB_API_KEY=AIzaSyAbc123...
+FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/firebase-service-account.json
 ```
 
 ## Dependencies (Key Packages)
@@ -527,6 +577,7 @@ ENVIRONMENT=development  # or production
 - psycopg2-binary
 
 ### Auth & HTTP
+- firebase-admin
 - authlib
 - httpx
 - python-multipart
@@ -559,7 +610,7 @@ ENVIRONMENT=development  # or production
 - One query per file
 - Named parameters (`:param_name`)
 - Comments for complex queries
-- Organized by domain (contacts/, interactions/)
+- Organized by domain (contacts/, interactions/, relationships/, users/)
 
 ### Logging
 - Use structured logging with context
@@ -571,4 +622,4 @@ ENVIRONMENT=development  # or production
 - Test file names: `test_*.py`
 - One test class per feature
 - Use fixtures for common setup
-- Mock external APIs (OpenAI)
+- Mock external APIs (OpenAI, Firebase)
