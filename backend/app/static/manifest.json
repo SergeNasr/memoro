@@ -1,0 +1,9 @@
+{
+  "name": "Memoro",
+  "short_name": "Memoro",
+  "description": "Personal CRM for tracking daily interactions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#edeae3",
+  "theme_color": "#4a4a46"
+}

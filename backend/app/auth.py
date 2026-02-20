@@ -21,9 +21,17 @@ def get_firebase_client() -> App:
     """Get the Firebase Admin SDK app instance."""
     global _firebase_app
     if _firebase_app is None:
-        if not settings.firebase_service_account_path:
-            raise ValueError("firebase_service_account_path is required for Firebase auth")
-        cred = credentials.Certificate(settings.firebase_service_account_path)
+        if settings.firebase_service_account_json:
+            import json
+
+            service_account_info = json.loads(settings.firebase_service_account_json)
+            cred = credentials.Certificate(service_account_info)
+        elif settings.firebase_service_account_path:
+            cred = credentials.Certificate(settings.firebase_service_account_path)
+        else:
+            raise ValueError(
+                "Either firebase_service_account_json or firebase_service_account_path is required"
+            )
         _firebase_app = initialize_app(credential=cred)
     return _firebase_app
 

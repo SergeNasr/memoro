@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     firebase_web_api_key: str | None = None
     # Required for Firebase Admin SDK token verification
     firebase_service_account_path: str | None = None
+    # Alternative: pass service account JSON as env var (for Fly.io / PaaS)
+    firebase_service_account_json: str | None = None
 
 
 # Global settings instance
