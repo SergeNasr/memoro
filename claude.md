@@ -10,7 +10,7 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - Look up latest recorded context for someone
 - Web-based application
 - Firebase email link authentication (magic links)
-- Cloud-agnostic deployment (starting with Digital Ocean)
+- Deployed on Fly.io (PaaS with managed Postgres)
 
 ## Implemented Features
 
@@ -65,6 +65,8 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - ⌨️ Keyboard shortcuts (cmd/ctrl+k for search, cmd/ctrl+. for new interaction)
 - 🧹 Clean HTMX implementation with minimal inline JavaScript
 - 🔐 Firebase email link authentication with cookie-based sessions
+- 📱 PWA support (installable on iOS/Android via Add to Home Screen)
+- 🚀 Fly.io deployment with managed Postgres
 
 **Authentication:**
 - 🔐 **GET /auth/login** - Login page with email input
@@ -137,9 +139,10 @@ Memoro is a personal CRM for tracking daily interactions with people in your lif
 - **ruff** - Fast Python linter and formatter
 
 ### Deployment
-- **Docker** - Containerization
+- **Fly.io** - PaaS hosting with auto HTTPS (`*.fly.dev`)
+- **Fly Postgres** - Managed PostgreSQL with pgvector + pg_trgm
+- **Docker** - Containerization (`Dockerfile.prod`)
 - **docker-compose** - Local PostgreSQL with pgvector for development
-- Cloud-agnostic approach - works on Digital Ocean, AWS, GCP, Azure
 - Environment-based configuration for portability
 
 ## Project Structure
@@ -234,11 +237,12 @@ memoro/
 │   │   └── static/
 │   │       ├── css/
 │   │       │   └── style.css       # Retro dark/brown styling
-│   │       └── js/
-│   │           ├── main.js
-│   │           ├── modal.js
-│   │           ├── toast.js
-│   │           └── htmx-handlers.js
+│   │       ├── js/
+│   │       │   ├── main.js
+│   │       │   ├── modal.js
+│   │       │   ├── toast.js
+│   │       │   └── htmx-handlers.js
+│   │       └── manifest.json       # PWA manifest
 │   ├── tests/
 │   │   ├── __init__.py
 │   │   ├── conftest.py             # pytest fixtures (in-memory DB)
@@ -265,7 +269,12 @@ memoro/
 ├── alembic.ini                     # Alembic configuration
 ├── pyproject.toml                  # uv dependencies
 ├── justfile                        # Command runner
-├── docker-compose.yml              # PostgreSQL with pgvector
+├── docker-compose.yml              # PostgreSQL with pgvector (local dev)
+├── fly.toml                        # Fly.io app configuration
+├── Dockerfile.prod                 # Production Docker image
+├── scripts/
+│   ├── setup-fly.sh                # One-time Fly.io setup
+│   └── migrate-data-fly.sh         # Migrate local DB to Fly Postgres
 ├── .env.example                    # Environment template
 ├── .gitignore
 ├── claude.md                       # This file
@@ -356,9 +365,10 @@ memoro/
 - Faster feedback loop during development
 
 ### Hybrid Database Approach
+- **Production**: Fly Postgres with pgvector + pg_trgm
 - **Development**: Docker PostgreSQL with pgvector (persisted data, easy reset)
 - **Testing**: In-memory PostgreSQL via pytest-postgresql (fast, isolated)
-- **Migrations**: Alembic against Docker PostgreSQL
+- **Migrations**: Alembic (local against Docker, production via `fly ssh console`)
 - Application queries: Raw SQL files (no ORM dependency at runtime)
 
 ### Database Connection Pattern
@@ -539,11 +549,9 @@ Service functions accept primitive parameters instead of Pydantic models:
 - Bulk import from contacts
 
 ### Deployment
-- GitHub Actions for CI/CD
-- Health check endpoints
 - Database backup strategy
-- Environment-specific configs
 - Monitoring and alerting
+- Custom domain setup
 
 ## Environment Variables
 
@@ -559,7 +567,8 @@ PORT=8000
 # Firebase Auth
 FIREBASE_PROJECT_ID=my-project-12345
 FIREBASE_WEB_API_KEY=AIzaSyAbc123...
-FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/firebase-service-account.json
+FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/firebase-service-account.json  # local dev (file)
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}           # Fly.io (env var)
 ```
 
 ## Dependencies (Key Packages)

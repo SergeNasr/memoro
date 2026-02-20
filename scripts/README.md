@@ -1,6 +1,39 @@
 # Scripts
 
-Ad-hoc utility scripts for maintenance and data operations.
+Ad-hoc utility scripts for maintenance, deployment, and data operations.
+
+## Fly.io Setup
+
+One-time interactive setup for deploying Memoro to Fly.io.
+
+**What it does:**
+1. Creates Fly app and Postgres database
+2. Ensures Postgres is running and ready (handles cold starts)
+3. Attaches Postgres (sets `DATABASE_URL` secret)
+4. Verifies `DATABASE_URL` was set before proceeding
+5. Prompts for secrets (OpenAI, Firebase, etc.)
+6. Deploys the app and runs migrations
+
+**Usage:**
+```bash
+# Prerequisites: brew install flyctl && fly auth login
+./scripts/setup-fly.sh              # defaults to app name "memoro"
+./scripts/setup-fly.sh myapp iad    # custom app name and region
+```
+
+## Migrate Data to Fly
+
+Migrates your local Docker Postgres database to Fly Postgres.
+
+**Usage:**
+```bash
+./scripts/migrate-data-fly.sh          # defaults to app "memoro"
+./scripts/migrate-data-fly.sh myapp    # custom app name
+```
+
+**Requirements:**
+- Local Docker database running (`docker-compose up -d`)
+- Fly Postgres connection string (from Fly dashboard)
 
 ## Backfill Embeddings
 

@@ -18,7 +18,7 @@ FastAPI • PostgreSQL • HTMX • OpenAI API
 - [uv](https://github.com/astral-sh/uv)
 - [just](https://github.com/casey/just)
 
-## Quick Start
+## Quick Start (Local Dev)
 
 ```bash
 # Install dependencies
@@ -39,6 +39,21 @@ just dev
 ```
 
 Visit http://localhost:8000
+
+## Deploy to Fly.io
+
+```bash
+# Prerequisites: brew install flyctl && fly auth login
+
+# One-time setup (interactive):
+./scripts/setup-fly.sh
+
+# Migrate local data:
+./scripts/migrate-data-fly.sh
+
+# Future deploys:
+fly deploy
+```
 
 ## Keyboard Shortcuts
 
